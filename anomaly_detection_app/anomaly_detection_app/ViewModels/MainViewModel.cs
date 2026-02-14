@@ -1,7 +1,10 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using anomaly_detection_app.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using System;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace anomaly_detection_app.ViewModels
@@ -9,12 +12,16 @@ namespace anomaly_detection_app.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         private AnomalyDetectionService? _inferenceService;
+        private float _anomalyThreshold = 10.0f;
 
         [ObservableProperty]
         private string _selectedImagePath;
 
         [ObservableProperty]
         private string _selectedModelPath;
+
+        [ObservableProperty]
+        private string _metadataInfo;
 
         [ObservableProperty]
         private string _resultText;
@@ -24,7 +31,8 @@ namespace anomaly_detection_app.ViewModels
 
         public MainViewModel()
         {
-            ResultText = "Please load an ONNX model.";
+            ResultText = "Step 1: Load ONNX Model. Step 2: Load JSON Metadata.";
+            MetadataInfo = "No metadata loaded.";
         }
 
         [RelayCommand]
@@ -41,16 +49,46 @@ namespace anomaly_detection_app.ViewModels
                 try
                 {
                     _inferenceService?.Dispose();
-
                     SelectedModelPath = openFileDialog.FileName;
                     _inferenceService = new AnomalyDetectionService(SelectedModelPath);
 
-                    ResultText = "Model loaded successfully. Now insert an image.";
+                    ResultText = "Model loaded. Now please load the corresponding Metadata JSON.";
                 }
                 catch (Exception ex)
                 {
                     ResultText = $"Error loading model: {ex.Message}";
                     SelectedModelPath = string.Empty;
+                }
+            }
+        }
+
+        [RelayCommand]
+        private async Task SelectMetadataAsync()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "JSON Files|*.json",
+                Title = "Select Metadata JSON File"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    string jsonString = await File.ReadAllTextAsync(openFileDialog.FileName);
+                    var metadata = JsonSerializer.Deserialize<ModelMetadata>(jsonString);
+
+                    if (metadata != null)
+                    {
+                        _anomalyThreshold = metadata.Threshold;
+
+                        MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Model: {metadata.ModelName} | Threshold: {_anomalyThreshold:F4}";
+                        ResultText = "Metadata loaded successfully. Now insert an image to inspect.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ResultText = $"Error loading metadata: {ex.Message}";
                 }
             }
         }
@@ -67,21 +105,29 @@ namespace anomaly_detection_app.ViewModels
             if (openFileDialog.ShowDialog() == true)
             {
                 SelectedImagePath = openFileDialog.FileName;
-
-                if (_inferenceService == null)
-                    ResultText = "Image loaded. Please load an ONNX model first.";
-                else
-                    ResultText = "Image loaded. Click 'Run Inference'.";
+                ResultText = "Image loaded. Click 'Run Inference'.";
             }
+        }
+
+        [RelayCommand]
+        private async Task RunInferenceAsync()
+        {
+            if (_inferenceService == null || string.IsNullOrEmpty(SelectedImagePath))
+            {
+                ResultText = "Error: Please load a model and an image first.";
+                return;
+            }
+
+            IsBusy = true;
+            ResultText = "Analyzing...";
 
             try
             {
-                // Run inference off the UI thread
                 float score = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath));
 
-                // You can adjust this threshold based on your model's evaluation
-                string status = score > 10.0f ? "ANOMALY DETECTED" : "NORMAL";
-                ResultText = $"Status: {status}\nMax Anomaly Score: {score:F4}";
+                string status = score > _anomalyThreshold ? "ANOMALY DETECTED" : "NORMAL";
+
+                ResultText = $"Status: {status}\nMax Anomaly Score: {score:F4} \n(Threshold was {_anomalyThreshold:F4})";
             }
             catch (Exception ex)
             {
