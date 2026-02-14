@@ -24,12 +24,15 @@ public class AnomalyDetectionService : IDisposable
 
         // 2. Preprocess: Resize to 256x256, Center Crop to 224x224
         image.Mutate(x => x
-            .Resize(new ResizeOptions
-            {
-                Size = new Size(256, 256),
-                Mode = ResizeMode.Crop
-            })
-            .Crop(new Rectangle(16, 16, 224, 224)));
+        .Resize(new ResizeOptions
+        {
+            Size = new Size(256, 256),
+            Mode = ResizeMode.Stretch,
+            Sampler = KnownResamplers.Triangle 
+        })
+        .Crop(new Rectangle(16, 16, 224, 224)) 
+        );
+
 
         // 3. Convert to Tensor and Normalize
         var inputTensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });

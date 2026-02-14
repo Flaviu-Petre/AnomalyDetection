@@ -1,12 +1,46 @@
-﻿<Window x:Class="anomaly_detection_app.MainWindow"
+﻿<Window x:Class="anomaly_detection_app.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:anomaly_detection_app"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        xmlns:local="clr-namespace:anomaly_detection_app.ViewModels"
+        Title="Industrial Anomaly Detection" Height="700" Width="850"
+        WindowStartupLocation="CenterScreen">
 
+    <Window.DataContext>
+        <local:MainViewModel />
+    </Window.DataContext>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Wide-ResNet50-2 PaDiM Inference" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
+                <Button Content="1. Load ONNX Model" Command="{Binding SelectModelCommand}" Width="160" Height="32" Margin="0,0,15,0"/>
+                <TextBlock Text="{Binding SelectedModelPath, TargetNullValue='No model selected'}" VerticalAlignment="Center" Foreground="Gray" FontStyle="Italic" Width="450" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Content="2. Load JSON Metadata" Command="{Binding SelectMetadataCommand}" Width="160" Height="32" Margin="0,0,15,0"/>
+                <TextBlock Text="{Binding MetadataInfo}" VerticalAlignment="Center" Foreground="DarkGreen" FontWeight="SemiBold" Width="450" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </StackPanel>
+
+        <Border Grid.Row="2" BorderBrush="LightGray" BorderThickness="2" Margin="0,0,0,20" Background="#F9F9F9" CornerRadius="4">
+            <Image Source="{Binding SelectedImagePath}" Stretch="Uniform" Margin="5"/>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,15">
+                <Button Content="3. Insert Image" Command="{Binding SelectImageCommand}" Width="140" Height="36" Margin="0,0,15,0" FontWeight="SemiBold"/>
+                <Button Content="4. Run Inference" Command="{Binding RunInferenceCommand}" Width="140" Height="36" FontWeight="SemiBold"/>
+            </StackPanel>
+            <TextBlock Text="{Binding ResultText}" FontSize="18" HorizontalAlignment="Center" Foreground="#1E3A8A" FontWeight="Medium" TextWrapping="Wrap" TextAlignment="Center"/>
+        </StackPanel>
     </Grid>
 </Window>
