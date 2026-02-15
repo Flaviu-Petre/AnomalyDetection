@@ -54,7 +54,6 @@ public class AnomalyDetectionService : IDisposable
         }
 
         // 4. Run Inference
-        // The python script defines the input name as "input"
         var inputs = new List<NamedOnnxValue>
         {
             NamedOnnxValue.CreateFromTensor("input", inputTensor)

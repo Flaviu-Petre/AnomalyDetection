@@ -32,7 +32,22 @@
         </StackPanel>
 
         <Border Grid.Row="2" BorderBrush="LightGray" BorderThickness="2" Margin="0,0,0,20" Background="#F9F9F9" CornerRadius="4">
-            <Image Source="{Binding SelectedImagePath}" Stretch="Uniform" Margin="5"/>
+            <Grid Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Vertical" Margin="5">
+                    <TextBlock Text="Original Input" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Gray" Margin="0,0,0,5"/>
+                    <Image Source="{Binding SelectedImagePath}" Stretch="Uniform"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Vertical" Margin="5">
+                    <TextBlock Text="Model Vision (224x224 Overlay)" HorizontalAlignment="Center" FontWeight="Bold" Foreground="DarkRed" Margin="0,0,0,5"/>
+                    <Image Source="{Binding HeatmapImageSource}" Stretch="Uniform" />
+                </StackPanel>
+            </Grid>
         </Border>
 
         <StackPanel Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Center">
