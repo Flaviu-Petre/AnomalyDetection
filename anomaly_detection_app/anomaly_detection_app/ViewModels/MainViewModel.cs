@@ -2,10 +2,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using System.Windows;
 using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace anomaly_detection_app.ViewModels
 {
@@ -22,6 +24,9 @@ namespace anomaly_detection_app.ViewModels
 
         [ObservableProperty]
         private string _metadataInfo;
+
+        [ObservableProperty]
+        private BitmapImage _heatmapImageSource;
 
         [ObservableProperty]
         private string _resultText;
@@ -112,22 +117,32 @@ namespace anomaly_detection_app.ViewModels
         [RelayCommand]
         private async Task RunInferenceAsync()
         {
-            if (_inferenceService == null || string.IsNullOrEmpty(SelectedImagePath))
-            {
-                ResultText = "Error: Please load a model and an image first.";
-                return;
-            }
+            if (_inferenceService == null || string.IsNullOrEmpty(SelectedImagePath)) return;
 
             IsBusy = true;
             ResultText = "Analyzing...";
 
             try
-            {
-                float score = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath));
+            {  
+                var result = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath));
 
-                string status = score > _anomalyThreshold ? "ANOMALY DETECTED" : "NORMAL";
+                string status = result.Score > _anomalyThreshold ? "ANOMALY DETECTED" : "NORMAL";
+                ResultText = $"Status: {status}\nMax Anomaly Score: {result.Score:F4} \n(Threshold was {_anomalyThreshold:F4})";
 
-                ResultText = $"Status: {status}\nMax Anomaly Score: {score:F4} \n(Threshold was {_anomalyThreshold:F4})";
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var bitmap = new BitmapImage();
+                    using (var mem = new MemoryStream(result.HeatmapImageBytes))
+                    {
+                        mem.Position = 0;
+                        bitmap.BeginInit();
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.StreamSource = mem;
+                        bitmap.EndInit();
+                    }
+                    bitmap.Freeze();
+                    HeatmapImageSource = bitmap;
+                });
             }
             catch (Exception ex)
             {
