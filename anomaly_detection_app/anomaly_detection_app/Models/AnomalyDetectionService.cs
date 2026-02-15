@@ -61,11 +61,72 @@ public class AnomalyDetectionService : IDisposable
         using var results = _session.Run(inputs);
         var outputTensor = results.First().AsTensor<float>();
 
-        // 5. Calculate Score: Max value of the anomaly map
-        float maxScore = float.MinValue;
-        foreach (var value in outputTensor)
+        // 5. Apply Gaussian Blur to find max score
+        float maxScore = GetMaxBlurredScore(outputTensor, 224, 224, 4f);
+
+        return maxScore;
+    }
+
+    private float GetMaxBlurredScore(Tensor<float> outputTensor, int width = 224, int height = 224, float sigma = 4f)
+    {
+        int radius = (int)Math.Ceiling(4 * sigma);
+        int size = 2 * radius + 1;
+        float[] kernel = new float[size];
+        float sum = 0;
+
+        for (int i = 0; i < size; i++)
         {
-            if (value > maxScore) maxScore = value;
+            int x = i - radius;
+            kernel[i] = (float)Math.Exp(-(x * x) / (2 * sigma * sigma));
+            sum += kernel[i];
+        }
+        for (int i = 0; i < size; i++) kernel[i] /= sum;
+
+        float[,] map = new float[height, width];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                map[y, x] = outputTensor[0, 0, y, x];
+            }
+        }
+
+        float[,] temp = new float[height, width];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float val = 0;
+                for (int i = 0; i < size; i++)
+                {
+                    int px = x + i - radius;
+                    if (px < 0) px = 0;
+                    else if (px >= width) px = width - 1;
+
+                    val += map[y, px] * kernel[i];
+                }
+                temp[y, x] = val;
+            }
+        }
+
+        float maxScore = float.MinValue;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float val = 0;
+                for (int i = 0; i < size; i++)
+                {
+                    int py = y + i - radius;
+                    if (py < 0) py = 0;
+                    else if (py >= height) py = height - 1;
+
+                    val += temp[py, x] * kernel[i];
+                }
+                if (val > maxScore) maxScore = val;
+            }
         }
 
         return maxScore;
