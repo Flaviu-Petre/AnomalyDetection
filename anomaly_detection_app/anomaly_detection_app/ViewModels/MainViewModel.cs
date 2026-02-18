@@ -70,6 +70,12 @@ namespace anomaly_detection_app.ViewModels
         [RelayCommand]
         private async Task SelectMetadataAsync()
         {
+            if (_inferenceService == null)
+            {
+                ResultText = "Error: Please load the ONNX Model first before loading Metadata.";
+                return;
+            }
+
             var openFileDialog = new OpenFileDialog
             {
                 Filter = "JSON Files|*.json",
@@ -78,17 +84,37 @@ namespace anomaly_detection_app.ViewModels
 
             if (openFileDialog.ShowDialog() == true)
             {
+                IsBusy = true;
+                ResultText = "Calibrating threshold...";
+
                 try
                 {
-                    string jsonString = await File.ReadAllTextAsync(openFileDialog.FileName);
+                    string jsonPath = openFileDialog.FileName;
+                    string jsonString = await File.ReadAllTextAsync(jsonPath);
                     var metadata = JsonSerializer.Deserialize<ModelMetadata>(jsonString);
 
                     if (metadata != null)
                     {
-                        _anomalyThreshold = metadata.Threshold;
+                        string directory = Path.GetDirectoryName(jsonPath);
+                        string calibrationImagePath = Path.Combine(directory, "calibration_image.png");
 
-                        MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Model: {metadata.ModelName} | Threshold: {_anomalyThreshold:F4}";
-                        ResultText = "Metadata loaded successfully. Now insert an image to inspect.";
+                        if (File.Exists(calibrationImagePath))
+                        {
+                            var calibrationResult = await Task.Run(() => _inferenceService.PredictAnomalyScore(calibrationImagePath));
+
+                            float libraryOffset = calibrationResult.Score - metadata.CalibrationScore;
+
+                            _anomalyThreshold = metadata.Threshold + libraryOffset;
+
+                            MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Offset: {(libraryOffset > 0 ? "+" : "")}{libraryOffset:F2} | Threshold: {_anomalyThreshold:F2}";
+                            ResultText = "Metadata and Calibration loaded successfully. Now insert an image to inspect.";
+                        }
+                        else
+                        {
+                            _anomalyThreshold = metadata.Threshold;
+                            MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Threshold: {_anomalyThreshold:F2} (Uncalibrated)";
+                            ResultText = "Warning: 'calibration_image.png' not found in JSON folder. Using uncalibrated Python threshold.";
+                        }
                     }
                 }
                 catch (Exception ex)

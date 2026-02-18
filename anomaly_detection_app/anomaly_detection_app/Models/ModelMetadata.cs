@@ -18,5 +18,8 @@ namespace anomaly_detection_app.Models
 
         [JsonPropertyName("category")]
         public string Category { get; set; }
+
+        [JsonPropertyName("calibration_score")]
+        public float CalibrationScore { get; set; }
     }
 }
