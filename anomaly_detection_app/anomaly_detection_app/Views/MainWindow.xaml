@@ -17,7 +17,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Wide-ResNet50-2 PaDiM Inference" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+        <TextBlock Grid.Row="0" Text="PaDiM Inference" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
         <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,20">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
@@ -54,6 +54,13 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,15">
                 <Button Content="3. Insert Image" Command="{Binding SelectImageCommand}" Width="140" Height="36" Margin="0,0,15,0" FontWeight="SemiBold"/>
                 <Button Content="4. Run Inference" Command="{Binding RunInferenceCommand}" Width="140" Height="36" FontWeight="SemiBold"/>
+                <CheckBox Content="Object Image (Apply Background Mask)" 
+                          IsChecked="{Binding IsObjectCategory}" 
+                          VerticalAlignment="Center" 
+                          Margin="20,0,0,0" 
+                          FontSize="14" 
+                          FontWeight="SemiBold" 
+                          Foreground="#333333"/>
             </StackPanel>
             <TextBlock Text="{Binding ResultText}" FontSize="18" HorizontalAlignment="Center" Foreground="#1E3A8A" FontWeight="Medium" TextWrapping="Wrap" TextAlignment="Center"/>
         </StackPanel>

@@ -29,6 +29,9 @@ namespace anomaly_detection_app.ViewModels
         private BitmapImage _heatmapImageSource;
 
         [ObservableProperty]
+        private bool _isObjectCategory;
+
+        [ObservableProperty]
         private string _resultText;
 
         [ObservableProperty]
@@ -150,7 +153,7 @@ namespace anomaly_detection_app.ViewModels
 
             try
             {  
-                var result = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath));
+                var result = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath, _isObjectCategory));
 
                 string status = result.Score > _anomalyThreshold ? "ANOMALY DETECTED" : "NORMAL";
                 ResultText = $"Status: {status}\nMax Anomaly Score: {result.Score:F4} \n(Threshold was {_anomalyThreshold:F4})";

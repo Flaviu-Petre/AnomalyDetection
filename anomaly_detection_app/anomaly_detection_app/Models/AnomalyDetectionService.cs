@@ -19,7 +19,7 @@ public class AnomalyDetectionService : IDisposable
         _session = new InferenceSession(modelPath);
     }
 
-    public AnomalyResult PredictAnomalyScore(string imagePath)
+    public AnomalyResult PredictAnomalyScore(string imagePath, bool applyMask = false)
     {
         // 1. Load Image
         using var image = Image.Load<Rgba32>(imagePath);
@@ -35,22 +35,33 @@ public class AnomalyDetectionService : IDisposable
             .Crop(new Rectangle(16, 16, 224, 224))
         );
 
-        // 3. Convert to Tensor and Normalize
+        // 3. Convert to Tensor, Normalize, and Extract Brightness
         var inputTensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
         var mean = new[] { 0.485f, 0.456f, 0.406f };
         var std = new[] { 0.229f, 0.224f, 0.225f };
+
+        float[] brightnessMap = new float[224 * 224];
 
         image.ProcessPixelRows(accessor =>
         {
             for (int y = 0; y < accessor.Height; y++)
             {
                 Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
+                int rowOffset = y * 224;
+
                 for (int x = 0; x < pixelRow.Length; x++)
                 {
                     ref Rgba32 pixel = ref pixelRow[x];
-                    inputTensor[0, 0, y, x] = ((pixel.R / 255f) - mean[0]) / std[0];
-                    inputTensor[0, 1, y, x] = ((pixel.G / 255f) - mean[1]) / std[1];
-                    inputTensor[0, 2, y, x] = ((pixel.B / 255f) - mean[2]) / std[2];
+
+                    float normR = ((pixel.R / 255f) - mean[0]) / std[0];
+                    float normG = ((pixel.G / 255f) - mean[1]) / std[1];
+                    float normB = ((pixel.B / 255f) - mean[2]) / std[2];
+
+                    inputTensor[0, 0, y, x] = normR;
+                    inputTensor[0, 1, y, x] = normG;
+                    inputTensor[0, 2, y, x] = normB;
+
+                    brightnessMap[rowOffset + x] = (normR + normG + normB) / 3f;
                 }
             }
         });
@@ -64,16 +75,38 @@ public class AnomalyDetectionService : IDisposable
         using var results = _session.Run(inputs);
         var outputTensor = results.First().AsTensor<float>();
 
-        // 5. Apply Gaussian Blur to find max score
-        var (maxScore, smoothedMap) = GetMaxBlurredScore(outputTensor, 224, 224, 4f);
+        // 5. Apply Gaussian Blur 
+        float[] smoothedMap = ApplyGaussianBlur(outputTensor.ToArray(), 224, 224, 8f);
 
-        // 6. Generate the Heatmap Image
-        float minScore = float.MaxValue;
-        for (int i = 0; i < smoothedMap.Length; i++)
+        // --- 6. DYNAMIC BACKGROUND MASK ---
+        if (applyMask)
         {
-            if (smoothedMap[i] < minScore) minScore = smoothedMap[i];
+            float bMin = brightnessMap.Min();
+            float bMax = brightnessMap.Max();
+            float thresh = bMin + 0.15f * (bMax - bMin); 
+
+            float[] rawMask = new float[224 * 224];
+            for (int i = 0; i < rawMask.Length; i++)
+            {
+                rawMask[i] = brightnessMap[i] > thresh ? 1.0f : 0.0f;
+            }
+
+            float[] smoothedMask = ApplyGaussianBlur(rawMask, 224, 224, 5f);
+
+            for (int i = 0; i < smoothedMap.Length; i++)
+            {
+                if (smoothedMask[i] <= 0.5f)
+                {
+                    smoothedMap[i] = 0f;
+                }
+            }
         }
 
+        // 7. Find Max Score for the final anomaly reading
+        float maxScore = smoothedMap.Max();
+        float minScore = smoothedMap.Min();
+
+        // 8. Generate the Heatmap Image
         using var heatmap = new Image<Rgba32>(224, 224);
         heatmap.ProcessPixelRows(accessor =>
         {
@@ -108,7 +141,7 @@ public class AnomalyDetectionService : IDisposable
         };
     }
 
-    private (float MaxScore, float[] SmoothedMap) GetMaxBlurredScore(Tensor<float> outputTensor, int width = 224, int height = 224, float sigma = 4f)
+    private float[] ApplyGaussianBlur(float[] map, int width = 224, int height = 224, float sigma = 8f)
     {
         int radius = (int)Math.Ceiling(4 * sigma);
         int size = 2 * radius + 1;
@@ -123,7 +156,6 @@ public class AnomalyDetectionService : IDisposable
         }
         for (int i = 0; i < size; i++) kernel[i] /= sum;
 
-        float[] map = outputTensor.ToArray();
         float[] temp = new float[height * width];
         float[] finalMap = new float[height * width];
 
@@ -142,7 +174,6 @@ public class AnomalyDetectionService : IDisposable
             }
         }
 
-        float maxScore = float.MinValue;
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
@@ -153,14 +184,11 @@ public class AnomalyDetectionService : IDisposable
                     int py = GetReflectIndex(y + i - radius, height);
                     val += temp[py * width + x] * kernel[i];
                 }
-
-                int finalIndex = y * width + x;
-                finalMap[finalIndex] = val;
-                if (val > maxScore) maxScore = val;
+                finalMap[y * width + x] = val;
             }
         }
 
-        return (maxScore, finalMap);
+        return finalMap;
     }
 
     private int GetReflectIndex(int index, int max)
