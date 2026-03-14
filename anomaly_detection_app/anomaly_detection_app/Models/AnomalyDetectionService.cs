@@ -14,21 +14,16 @@ using Size = SixLabors.ImageSharp.Size;
 public class AnomalyDetectionService : IDisposable
 {
     private readonly InferenceSession _padimSession;
-    private readonly InferenceSession _yoloSession;
 
-    public AnomalyDetectionService(string padimModelPath, string yoloModelPath)
+    public AnomalyDetectionService(string padimModelPath)
     {
-        // Initialize both ONNX sessions
         _padimSession = new InferenceSession(padimModelPath);
-        _yoloSession = new InferenceSession(yoloModelPath);
     }
 
     public AnomalyResult PredictAnomalyScore(string imagePath, bool applyMask = false)
     {
-        // 1. Load Image
         using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(imagePath);
 
-        // 2. Preprocess: Resize to 256x256, Center Crop to 224x224
         image.Mutate(x => x
             .Resize(new ResizeOptions
             {
@@ -39,7 +34,6 @@ public class AnomalyDetectionService : IDisposable
             .Crop(new Rectangle(16, 16, 224, 224))
         );
 
-        // 3. Convert to Tensor and Normalize (ImageNet Standards for PaDiM)
         var inputTensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
         var mean = new[] { 0.485f, 0.456f, 0.406f };
         var std = new[] { 0.229f, 0.224f, 0.225f };
@@ -49,237 +43,161 @@ public class AnomalyDetectionService : IDisposable
             for (int y = 0; y < accessor.Height; y++)
             {
                 Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
-
                 for (int x = 0; x < pixelRow.Length; x++)
                 {
                     ref Rgba32 pixel = ref pixelRow[x];
-
-                    float normR = ((pixel.R / 255f) - mean[0]) / std[0];
-                    float normG = ((pixel.G / 255f) - mean[1]) / std[1];
-                    float normB = ((pixel.B / 255f) - mean[2]) / std[2];
-
-                    inputTensor[0, 0, y, x] = normR;
-                    inputTensor[0, 1, y, x] = normG;
-                    inputTensor[0, 2, y, x] = normB;
+                    inputTensor[0, 0, y, x] = ((pixel.R / 255f) - mean[0]) / std[0];
+                    inputTensor[0, 1, y, x] = ((pixel.G / 255f) - mean[1]) / std[1];
+                    inputTensor[0, 2, y, x] = ((pixel.B / 255f) - mean[2]) / std[2];
                 }
             }
         });
 
-        // 4. Run Inference through PaDiM
-        var inputs = new List<NamedOnnxValue>
-        {
-            NamedOnnxValue.CreateFromTensor("input", inputTensor)
-        };
-
+        var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input", inputTensor) };
         using var results = _padimSession.Run(inputs);
         var outputTensor = results.First().AsTensor<float>();
         float[] rawMap = outputTensor.ToArray();
 
-        // 5. DYNAMIC BACKGROUND MASK 
+        using Mat rawMat = new Mat(224, 224, MatType.CV_32FC1);
+        rawMat.SetArray(rawMap);
+
+        using Mat blurredMat = new Mat();
+        Cv2.GaussianBlur(rawMat, blurredMat, new OpenCvSharp.Size(31, 31), 8.0);
+
+        float[] blurredMap = new float[224 * 224];
+        blurredMat.GetArray(out blurredMap);
+
         if (applyMask)
         {
-            float[] yoloMask = GenerateYoloMask(image);
-
-            for (int i = 0; i < rawMap.Length; i++)
+            float[] contrastMask = GenerateContrastMask(image);
+            for (int i = 0; i < blurredMap.Length; i++)
             {
-                if (yoloMask[i] == 0f)
-                {
-                    rawMap[i] = 0f;
-                }
+                if (contrastMask[i] == 0f) blurredMap[i] = 0f;
             }
         }
 
-        // 6. Global Score Calculation 
-        float maxScore = 0f;
-        int borderOffset = 16;
+        int borderOffset = 8;
+        var validScores = new List<float>();
 
         for (int y = borderOffset; y < 224 - borderOffset; y++)
         {
             for (int x = borderOffset; x < 224 - borderOffset; x++)
             {
-                float val = rawMap[y * 224 + x];
-                if (val > maxScore)
-                {
-                    maxScore = val;
-                }
+                float val = blurredMap[y * 224 + x];
+                if (val > 0) validScores.Add(val);
             }
         }
 
-        // 7. ADVANCED POST-PROCESSING & MORPHOLOGY 
-        using Mat rawMat = new Mat(224, 224, MatType.CV_32FC1);
-        rawMat.SetArray(rawMap);
+        float finalRobustScore = 0f;
+        if (validScores.Count > 0)
+        {
+            validScores.Sort();
+            int index = (int)(validScores.Count * 0.995);
+            finalRobustScore = validScores[Math.Min(index, validScores.Count - 1)];
+        }
 
-        using Mat binaryTopologyMat = RefineAnomalyTopology(rawMat);
+        using Mat maskedBlurredMat = new Mat(224, 224, MatType.CV_32FC1);
+        maskedBlurredMat.SetArray(blurredMap);
 
-        byte[] topologyBytes = new byte[224 * 224];
-        binaryTopologyMat.GetArray(out topologyBytes);
+        using Mat normalizedMap = new Mat();
+        Cv2.Normalize(maskedBlurredMat, normalizedMap, 0, 255, NormTypes.MinMax, (int)MatType.CV_8UC1);
 
-        // 8. Generate the Defect Overlay Image
-        using var heatmap = new SixLabors.ImageSharp.Image<Rgba32>(224, 224);
-        heatmap.ProcessPixelRows(accessor =>
+        using Mat colorMap = new Mat();
+        Cv2.ApplyColorMap(normalizedMap, colorMap, ColormapTypes.Jet);
+
+        using var heatmapOverlay = new SixLabors.ImageSharp.Image<Rgba32>(224, 224);
+        heatmapOverlay.ProcessPixelRows(accessor =>
         {
             for (int y = 0; y < 224; y++)
             {
                 Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
-                int rowOffset = y * 224;
+                int mapOffset = y * 224;
 
                 for (int x = 0; x < 224; x++)
                 {
-                    if (topologyBytes[rowOffset + x] == 255)
-                    {
-                        pixelRow[x] = new Rgba32(255, 0, 0, 150);
-                    }
-                    else
-                    {
-                        pixelRow[x] = new Rgba32(0, 0, 0, 0);
-                    }
+                    Vec3b color = colorMap.At<Vec3b>(y, x);
+
+                    // If you want the background to be completely invisible, change this to:
+                    // byte alpha = blurredMap[mapOffset + x] == 0f ? (byte)0 : (byte)128;
+                    byte alpha = 128;
+
+                    pixelRow[x] = new Rgba32(color.Item2, color.Item1, color.Item0, alpha);
                 }
             }
         });
 
-        image.Mutate(ctx => ctx.DrawImage(heatmap, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
+        image.Mutate(ctx => ctx.DrawImage(heatmapOverlay, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
 
         using var ms = new MemoryStream();
         image.SaveAsJpeg(ms);
 
         return new AnomalyResult
         {
-            Score = maxScore,
+            Score = finalRobustScore,
             HeatmapImageBytes = ms.ToArray()
         };
     }
 
-    private Mat RefineAnomalyTopology(Mat rawMahalanobisHeatmap)
+    private float[] GenerateContrastMask(SixLabors.ImageSharp.Image<Rgba32> sourceImage)
     {
-        // 1. Normalize the raw floating-point anomaly distances into an 8-bit grayscale matrix (0-255)
-        using Mat normalizedMap = new Mat();
-        Cv2.Normalize(rawMahalanobisHeatmap, normalizedMap, 0, 255, NormTypes.MinMax, (int)MatType.CV_8UC1);
+        using Mat grayMat = new Mat(224, 224, MatType.CV_8UC1);
 
-        // 2. Execute Adaptive Thresholding (Mean-C) to binarize the heatmap based on local illumination gradients.
-        using Mat thresholdedMap = new Mat();
-        Cv2.AdaptiveThreshold(
-            normalizedMap,
-            thresholdedMap,
-            255,
-            AdaptiveThresholdTypes.MeanC,
-            ThresholdTypes.Binary,
-            15,
-            -2
-        );
-
-        // 3. Define the structuring element (kernel) for the ensuing Morphological Operations.
-        using Mat structuringElement = Cv2.GetStructuringElement(MorphShapes.Ellipse, new OpenCvSharp.Size(5, 5));
-
-        // 4. Morphological Opening: Systematically annihilate isolated micro-dust particles and sensor noise.
-        using Mat openedMap = new Mat();
-        Cv2.MorphologyEx(thresholdedMap, openedMap, MorphTypes.Open, structuringElement);
-
-        // 5. Morphological Closing: Bridge the gaps between fragmented defect segments to form contiguous geometries.
-        Mat finalDefectTopology = new Mat();
-        Cv2.MorphologyEx(openedMap, finalDefectTopology, MorphTypes.Close, structuringElement);
-
-        return finalDefectTopology;
-    }
-
-    private float[] GenerateYoloMask(SixLabors.ImageSharp.Image<Rgba32> sourceImage)
-    {
-        // 1. Preprocess for YOLOv8 (Standard 640x640 input)
-        using var yoloImage = sourceImage.Clone(x => x.Resize(new ResizeOptions
-        {
-            Size = new Size(640, 640),
-            Mode = ResizeMode.Stretch,
-            Sampler = KnownResamplers.Triangle
-        }));
-
-        var inputTensor = new DenseTensor<float>(new[] { 1, 3, 640, 640 });
-        yoloImage.ProcessPixelRows(accessor =>
-        {
-            for (int y = 0; y < accessor.Height; y++)
-            {
-                Span<Rgba32> row = accessor.GetRowSpan(y);
-                for (int x = 0; x < row.Length; x++)
-                {
-                    inputTensor[0, 0, y, x] = row[x].R / 255f;
-                    inputTensor[0, 1, y, x] = row[x].G / 255f;
-                    inputTensor[0, 2, y, x] = row[x].B / 255f;
-                }
-            }
-        });
-
-        var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("images", inputTensor) };
-        using var results = _yoloSession.Run(inputs);
-
-        // 2. Extract YOLOv8-Seg Output Tensors
-        var output0 = results.First(v => v.Name == "output0").AsTensor<float>(); 
-        var output1 = results.First(v => v.Name == "output1").AsTensor<float>(); 
-
-        // 3. Find the best detection 
-        int bestAnchor = 0;
-        float maxConf = 0;
-        for (int i = 0; i < 8400; i++)
-        {
-            float conf = output0[0, 4, i];
-            if (conf > maxConf)
-            {
-                maxConf = conf;
-                bestAnchor = i;
-            }
-        }
-
-        // 4. Matrix Multiplication: Coefficients * Prototypes
-        float[] mask160 = new float[160 * 160];
-
-        if (maxConf > 0.50f)
-        {
-            float[] coeffs = new float[32];
-            for (int c = 0; c < 32; c++) coeffs[c] = output0[0, 5 + c, bestAnchor];
-
-            for (int y = 0; y < 160; y++)
-            {
-                for (int x = 0; x < 160; x++)
-                {
-                    float val = 0;
-                    for (int c = 0; c < 32; c++)
-                    {
-                        val += coeffs[c] * output1[0, c, y, x];
-                    }
-
-                    float sigmoid = 1.0f / (1.0f + (float)Math.Exp(-val));
-
-                    mask160[y * 160 + x] = sigmoid > 0.5f ? 1.0f : 0.0f;
-                }
-            }
-        }
-
-        // 5. Resize the 160x160 binary mask back to PaDiM's 224x224 coordinate space using ImageSharp
-        using var maskImage = new SixLabors.ImageSharp.Image<L8>(160, 160);
-        maskImage.ProcessPixelRows(accessor =>
-        {
-            for (int y = 0; y < 160; y++)
-            {
-                Span<L8> row = accessor.GetRowSpan(y);
-                for (int x = 0; x < 160; x++)
-                {
-                    row[x] = new L8((byte)(mask160[y * 160 + x] * 255));
-                }
-            }
-        });
-
-        maskImage.Mutate(x => x.Resize(224, 224, KnownResamplers.NearestNeighbor));
-
-        // 6. Output the final 224x224 binary filter
-        float[] finalMask224 = new float[224 * 224];
-        maskImage.ProcessPixelRows(accessor =>
+        sourceImage.ProcessPixelRows(accessor =>
         {
             for (int y = 0; y < 224; y++)
             {
-                Span<L8> row = accessor.GetRowSpan(y);
+                Span<Rgba32> row = accessor.GetRowSpan(y);
                 for (int x = 0; x < 224; x++)
                 {
-                    finalMask224[y * 224 + x] = row[x].PackedValue > 127 ? 1.0f : 0.0f;
+                    byte gray = (byte)(0.299 * row[x].R + 0.587 * row[x].G + 0.114 * row[x].B);
+                    grayMat.Set<byte>(y, x, gray);
                 }
             }
         });
+
+        using Mat blurred = new Mat();
+        Cv2.GaussianBlur(grayMat, blurred, new OpenCvSharp.Size(5, 5), 0);
+
+        using Mat bgRoi = new Mat(blurred, new OpenCvSharp.Rect(0, 0, 10, 10));
+        Scalar bgMean = Cv2.Mean(bgRoi);
+
+        using Mat diffMat = new Mat();
+        Cv2.Absdiff(blurred, new Scalar(bgMean.Val0), diffMat);
+
+        using Mat threshMat = new Mat();
+        Cv2.Threshold(diffMat, threshMat, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+
+        using Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(5, 5));
+        using Mat openedMat = new Mat();
+        Cv2.MorphologyEx(threshMat, openedMat, MorphTypes.Open, openKernel);
+
+        Cv2.FindContours(openedMat, out OpenCvSharp.Point[][] contours, out _, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
+
+        using Mat maskMat = new Mat(224, 224, MatType.CV_8UC1, new Scalar(0));
+
+        if (contours.Length > 0)
+        {
+            double maxArea = 0;
+            int maxAreaIdx = -1;
+            for (int i = 0; i < contours.Length; i++)
+            {
+                double area = Cv2.ContourArea(contours[i]);
+                if (area > maxArea) { maxArea = area; maxAreaIdx = i; }
+            }
+            if (maxAreaIdx != -1) Cv2.DrawContours(maskMat, contours, maxAreaIdx, new Scalar(255), Cv2.FILLED);
+            else maskMat.SetTo(new Scalar(255));
+        }
+        else maskMat.SetTo(new Scalar(255));
+
+        using Mat finalMaskMat = new Mat();
+        using Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new OpenCvSharp.Size(15, 15));
+        Cv2.Dilate(maskMat, finalMaskMat, dilateKernel);
+
+        float[] finalMask224 = new float[224 * 224];
+        byte[] maskBytes = new byte[224 * 224];
+        finalMaskMat.GetArray(out maskBytes);
+
+        for (int i = 0; i < maskBytes.Length; i++) finalMask224[i] = maskBytes[i] > 127 ? 1.0f : 0.0f;
 
         return finalMask224;
     }
@@ -287,6 +205,5 @@ public class AnomalyDetectionService : IDisposable
     public void Dispose()
     {
         _padimSession?.Dispose();
-        _yoloSession?.Dispose();
     }
 }

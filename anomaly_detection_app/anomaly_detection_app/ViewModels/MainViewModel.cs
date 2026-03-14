@@ -1,7 +1,6 @@
 ﻿using anomaly_detection_app.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using OpenCvSharp;
 using Microsoft.Win32;
 using System.Windows;
 using System;
@@ -58,29 +57,17 @@ namespace anomaly_detection_app.ViewModels
                 try
                 {
                     string padimPath = openFileDialog.FileName;
-                    string directory = Path.GetDirectoryName(padimPath);
-
-                    string yoloPath = Path.Combine(directory, "yolov8n-seg.onnx");
-
-                    if (!File.Exists(yoloPath))
-                    {
-                        MessageBox.Show("Could not find 'yolov8n-seg.onnx' in the same directory as the PaDiM model.\n\nPlease ensure both ONNX files are in the same folder before loading.",
-                                        "Missing YOLO Model",
-                                        MessageBoxButton.OK,
-                                        MessageBoxImage.Warning);
-                        return;
-                    }
 
                     _inferenceService?.Dispose();
                     SelectedModelPath = padimPath;
 
-                    _inferenceService = new AnomalyDetectionService(SelectedModelPath, yoloPath);
+                    _inferenceService = new AnomalyDetectionService(SelectedModelPath);
 
-                    ResultText = "PaDiM and YOLOv8 models loaded successfully. Now please load the corresponding Metadata JSON.";
+                    ResultText = "PaDiM model loaded successfully. Now please load the corresponding Metadata JSON.";
                 }
                 catch (Exception ex)
                 {
-                    ResultText = $"Error loading models: {ex.Message}";
+                    ResultText = $"Error loading model: {ex.Message}";
                     SelectedModelPath = string.Empty;
                 }
             }
@@ -91,7 +78,7 @@ namespace anomaly_detection_app.ViewModels
         {
             if (_inferenceService == null)
             {
-                ResultText = "Error: Please load the ONNX Models first before loading Metadata.";
+                ResultText = "Error: Please load the ONNX Model first before loading Metadata.";
                 return;
             }
 
@@ -104,7 +91,7 @@ namespace anomaly_detection_app.ViewModels
             if (openFileDialog.ShowDialog() == true)
             {
                 IsBusy = true;
-                ResultText = "Calibrating threshold...";
+                ResultText = "Loading threshold...";
 
                 try
                 {
@@ -114,30 +101,19 @@ namespace anomaly_detection_app.ViewModels
 
                     if (metadata != null)
                     {
-                        string directory = Path.GetDirectoryName(jsonPath);
-                        string calibrationImagePath = Path.Combine(directory, "calibration_image.png");
-
                         IsObjectCategory = metadata.Category.ToLower() != "carpet" &&
                                            metadata.Category.ToLower() != "grid" &&
                                            metadata.Category.ToLower() != "leather" &&
                                            metadata.Category.ToLower() != "tile" &&
-                                           metadata.Category.ToLower() != "wood";
+                                           metadata.Category.ToLower() != "wood" &&
+                                           metadata.Category.ToLower() != "cable" &&
+                                           metadata.Category.ToLower() != "screw" &&
+                                           metadata.Category.ToLower() != "transistor" &&
+                                           metadata.Category.ToLower() != "zipper";
 
-                        if (File.Exists(calibrationImagePath))
-                        {
-                            var calibrationResult = await Task.Run(() => _inferenceService.PredictAnomalyScore(calibrationImagePath, IsObjectCategory));
-
-                            _anomalyThreshold = calibrationResult.Score * 1.30f;
-
-                            MetadataInfo = $"Category: {metadata.Category.ToUpper()} | INT8 Threshold: {_anomalyThreshold:F2}";
-                            ResultText = "Calibration loaded successfully. Now insert an image to inspect.";
-                        }
-                        else
-                        {
-                            _anomalyThreshold = metadata.Threshold;
-                            MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Threshold: {_anomalyThreshold:F2} (Uncalibrated)";
-                            ResultText = "Warning: 'calibration_image.png' not found in JSON folder. Using uncalibrated Python threshold.";
-                        }
+                        _anomalyThreshold = metadata.Threshold;
+                        MetadataInfo = $"Category: {metadata.Category.ToUpper()} | Threshold: {_anomalyThreshold:F4}";
+                        ResultText = "Metadata loaded successfully. Ready for inference.";
                     }
                 }
                 catch (Exception ex)
@@ -180,7 +156,7 @@ namespace anomaly_detection_app.ViewModels
                 var result = await Task.Run(() => _inferenceService.PredictAnomalyScore(SelectedImagePath, IsObjectCategory));
 
                 string status = result.Score > _anomalyThreshold ? "ANOMALY DETECTED" : "NORMAL";
-                ResultText = $"Status: {status}\nMax Anomaly Score: {result.Score:F4} \n(Threshold was {_anomalyThreshold:F4})";
+                ResultText = $"Status: {status}\nRobust Anomaly Score: {result.Score:F4} \n(Threshold was {_anomalyThreshold:F4})";
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
