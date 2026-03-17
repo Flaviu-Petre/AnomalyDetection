@@ -399,3 +399,14 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# =========================
+# Machine Learning Artifacts
+# =========================
+
+# Ignore the specific weights directory we just created
+ModelWeights/
+
+# Global safety nets: never commit ONNX models anywhere in the repo
+*.onnx
+*.onnx.data

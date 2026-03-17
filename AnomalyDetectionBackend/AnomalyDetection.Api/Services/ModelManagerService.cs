@@ -20,7 +20,7 @@ namespace AnomalyDetection.Api.Services
                 return (_activeServices[category], _metadataCache[category].Threshold);
             }
 
-            string modelPath = Path.Combine(_modelStorageDirectory, category, $"padim_convnext_tiny_{category}_int8.onnx");
+            string modelPath = Path.Combine(_modelStorageDirectory, category, $"padim_model_{category}.onnx");
             string metaPath = Path.Combine(_modelStorageDirectory, category, $"metadata_{category}.json");
 
             if (!File.Exists(modelPath) || !File.Exists(metaPath))
