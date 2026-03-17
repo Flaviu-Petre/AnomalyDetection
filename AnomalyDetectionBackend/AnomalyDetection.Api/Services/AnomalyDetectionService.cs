@@ -141,18 +141,77 @@ namespace AnomalyDetection.Api.Services
                 }
             });
 
-            baseImage.Mutate(ctx => ctx.DrawImage(heatmapOverlay, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
+            image.Mutate(ctx => ctx.DrawImage(heatmapOverlay, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
 
             using var ms = new MemoryStream();
-            baseImage.SaveAsPng(ms);
+            image.SaveAsPng(ms);
 
             return Convert.ToBase64String(ms.ToArray());
         }
 
-        // TODO: Implement the contrast masking logic to create a binary mask based on the original image's contrast, which can be used to suppress low-contrast areas in the anomaly map.
         private float[] GenerateContrastMask(Image<Rgba32> image)
         {
-            throw new NotImplementedException();
+            using Mat grayMat = new Mat(224, 224, MatType.CV_8UC1);
+
+            image.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < 224; y++)
+                {
+                    Span<Rgba32> row = accessor.GetRowSpan(y);
+                    for (int x = 0; x < 224; x++)
+                    {
+                        byte gray = (byte)(0.299 * row[x].R + 0.587 * row[x].G + 0.114 * row[x].B);
+                        grayMat.Set<byte>(y, x, gray);
+                    }
+                }
+            });
+
+            using Mat blurred = new Mat();
+            Cv2.GaussianBlur(grayMat, blurred, new OpenCvSharp.Size(5, 5), 0);
+
+            using Mat bgRoi = new Mat(blurred, new OpenCvSharp.Rect(0, 0, 10, 10));
+            Scalar bgMean = Cv2.Mean(bgRoi);
+
+            using Mat diffMat = new Mat();
+            Cv2.Absdiff(blurred, new Scalar(bgMean.Val0), diffMat);
+
+            using Mat threshMat = new Mat();
+            Cv2.Threshold(diffMat, threshMat, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+
+            using Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(5, 5));
+            using Mat openedMat = new Mat();
+            Cv2.MorphologyEx(threshMat, openedMat, MorphTypes.Open, openKernel);
+
+            Cv2.FindContours(openedMat, out OpenCvSharp.Point[][] contours, out _, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
+
+            using Mat maskMat = new Mat(224, 224, MatType.CV_8UC1, new Scalar(0));
+
+            if (contours.Length > 0)
+            {
+                double maxArea = 0;
+                int maxAreaIdx = -1;
+                for (int i = 0; i < contours.Length; i++)
+                {
+                    double area = Cv2.ContourArea(contours[i]);
+                    if (area > maxArea) { maxArea = area; maxAreaIdx = i; }
+                }
+                if (maxAreaIdx != -1) Cv2.DrawContours(maskMat, contours, maxAreaIdx, new Scalar(255), Cv2.FILLED);
+                else maskMat.SetTo(new Scalar(255));
+            }
+            else maskMat.SetTo(new Scalar(255));
+
+            using Mat finalMaskMat = new Mat();
+            using Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new OpenCvSharp.Size(15, 15));
+            Cv2.Dilate(maskMat, finalMaskMat, dilateKernel);
+
+            float[] finalMask224 = new float[224 * 224];
+            byte[] maskBytes = new byte[224 * 224];
+            finalMaskMat.GetArray(out maskBytes);
+
+            for (int i = 0; i < maskBytes.Length; i++) finalMask224[i] = maskBytes[i] > 127 ? 1.0f : 0.0f;
+
+            return finalMask224;
+
         }
 
         public void Dispose()
