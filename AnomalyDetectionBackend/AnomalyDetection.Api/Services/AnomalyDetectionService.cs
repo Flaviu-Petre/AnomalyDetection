@@ -113,10 +113,40 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
-        // TODO: Implement the heatmap generation logic to convert the blurred anomaly map into a visual representation and encode it as a Base64 string.
         private string GenerateHeatmapBase64(float[] blurredMap, Image<Rgba32> image)
         {
-            throw new NotImplementedException();
+            using Mat maskedBlurredMat = new Mat(224, 224, MatType.CV_32FC1);
+            maskedBlurredMat.SetArray(blurredMap);
+
+            using Mat normalizedMap = new Mat();
+            Cv2.Normalize(maskedBlurredMat, normalizedMap, 0, 255, NormTypes.MinMax, (int)MatType.CV_8UC1);
+
+            using Mat colorMap = new Mat();
+            Cv2.ApplyColorMap(normalizedMap, colorMap, ColormapTypes.Jet);
+
+            using var heatmapOverlay = new Image<Rgba32>(224, 224);
+            heatmapOverlay.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < 224; y++)
+                {
+                    Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
+                    int mapOffset = y * 224;
+
+                    for (int x = 0; x < 224; x++)
+                    {
+                        Vec3b color = colorMap.At<Vec3b>(y, x);
+                        byte alpha = 128;
+                        pixelRow[x] = new Rgba32(color.Item2, color.Item1, color.Item0, alpha);
+                    }
+                }
+            });
+
+            baseImage.Mutate(ctx => ctx.DrawImage(heatmapOverlay, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
+
+            using var ms = new MemoryStream();
+            baseImage.SaveAsPng(ms);
+
+            return Convert.ToBase64String(ms.ToArray());
         }
 
         // TODO: Implement the contrast masking logic to create a binary mask based on the original image's contrast, which can be used to suppress low-contrast areas in the anomaly map.
