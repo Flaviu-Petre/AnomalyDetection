@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace AnomalyDetection.Api.Model
+namespace AnomalyDetection.Api.Models
 {
     public class ModelMetadata
     {
@@ -12,6 +12,9 @@ namespace AnomalyDetection.Api.Model
 
         [JsonPropertyName("threshold")]
         public float Threshold { get; set; }
+
+        [JsonPropertyName("input_size")]
+        public int[] InputSize { get; set; } = Array.Empty<int>();
 
         [JsonPropertyName("calibration_score")]
         public float CalibrationScore { get; set; }

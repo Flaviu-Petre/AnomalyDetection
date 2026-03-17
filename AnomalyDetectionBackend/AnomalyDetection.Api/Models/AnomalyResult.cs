@@ -6,6 +6,5 @@
         public float Score { get; set; }
         public float UsedThreshold { get; set; }
         public string? HeatmapBase64 { get; set; }
-
     }
 }
