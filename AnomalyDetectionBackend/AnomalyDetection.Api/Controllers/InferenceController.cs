@@ -10,6 +10,7 @@ namespace AnomalyDetection.Api.Controllers
     public class InferenceController : ControllerBase
     {
         private readonly ModelManagerService _modelManager;
+        private readonly StatisticsService _statisticsService;
 
         private readonly string[] _textureClasses =
         [
@@ -17,9 +18,10 @@ namespace AnomalyDetection.Api.Controllers
             "cable", "screw", "transistor", "zipper", "bottle"
         ];
 
-        public InferenceController(ModelManagerService modelManager)
+        public InferenceController(ModelManagerService modelManager, StatisticsService statisticsService)
         {
             _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
+            _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
         }
 
         [HttpPost("detect_anomaly")]
@@ -54,6 +56,13 @@ namespace AnomalyDetection.Api.Controllers
                     Score = result.Score,
                     UsedThreshold = result.UsedThreshold
                 };
+
+                _statisticsService.SaveInferenceResult(
+                    normalizedCategory,
+                    liteResult.IsAnomaly,
+                    liteResult.Score,
+                    liteResult.UsedThreshold
+                );
 
                 return Ok(liteResult);
             }
