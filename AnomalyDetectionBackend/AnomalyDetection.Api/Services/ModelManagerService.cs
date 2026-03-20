@@ -1,16 +1,27 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
 using AnomalyDetection.Api.Models;
+using Microsoft.Extensions.Logging;
 
 namespace AnomalyDetection.Api.Services
 {
     public class ModelManagerService
     {
+        #region Variables
         private readonly ConcurrentDictionary<string, AnomalyDetectionService> _activeServices = new();
         private readonly ConcurrentDictionary<string, ModelMetadata> _metadataCache = new();
-
         private readonly string _modelStorageDirectory = "ModelWeights";
+        private readonly ILogger<ModelManagerService> _logger;
+        #endregion
 
+        #region Constructor
+        public ModelManagerService(ILogger<ModelManagerService> logger)
+        {
+            _logger = logger;
+        }
+        #endregion
+
+        #region Public Methods
         public (AnomalyDetectionService Service, float Threshold) GetModelForCategory(string category)
         {
             category = category.ToLower();
@@ -39,5 +50,47 @@ namespace AnomalyDetection.Api.Services
 
             return (newService, metadata.Threshold);
         }
+
+        public List<ModelInfo> GetAvailableModels()
+        {
+            var availableModels = new List<ModelInfo>();
+            if (!Directory.Exists(_modelStorageDirectory))
+            {
+                return availableModels;
+            }
+
+            var categoryFolders = Directory.GetDirectories(_modelStorageDirectory);
+
+            foreach (var folder in categoryFolders)
+            {
+                string category = new DirectoryInfo(folder).Name;
+                string metaPath = Path.Combine(folder, $"metadata_{category}.json");
+
+                if (File.Exists(metaPath))
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(metaPath);
+                        var metadata = JsonSerializer.Deserialize<ModelMetadata>(json);
+
+                        if (metadata != null)
+                        {
+                            availableModels.Add(new ModelInfo
+                            {
+                                Category = metadata.Category,
+                                Threshold = metadata.Threshold
+                            });
+                        }
+                    }
+                    catch (Exception ex) 
+                    {
+                        _logger.LogWarning(ex, "Failed to load or parse metadata for category '{Category}'. The file might be corrupted.", category);
+                    }
+                }
+            }
+
+            return availableModels;
+        }
+        #endregion
     }
 }
