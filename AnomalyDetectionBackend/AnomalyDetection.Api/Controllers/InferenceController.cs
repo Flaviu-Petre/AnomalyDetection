@@ -1,5 +1,7 @@
-﻿using AnomalyDetection.Api.Services;
+﻿using AnomalyDetection.Api.Models;
+using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Rewrite;
 
 namespace AnomalyDetection.Api.Controllers
 {
@@ -9,13 +11,19 @@ namespace AnomalyDetection.Api.Controllers
     {
         private readonly ModelManagerService _modelManager;
 
+        private readonly string[] _textureClasses =
+        [
+            "carpet", "grid", "leather", "tile", "wood",
+            "cable", "screw", "transistor", "zipper", "bottle"
+        ];
+
         public InferenceController(ModelManagerService modelManager)
         {
             _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
         }
 
         [HttpPost("detect_anomaly")]
-        public IActionResult DetectAnomaly([FromForm] string category, [FromForm] bool applyMask, IFormFile image)
+        public IActionResult DetectAnomaly([FromForm] string category, IFormFile image)
         {
             if(string.IsNullOrWhiteSpace(category))
                 return BadRequest("You must provide a category (e.g., 'bottle').");
@@ -25,12 +33,23 @@ namespace AnomalyDetection.Api.Controllers
 
             try
             {
+                string normalizedCategory = category.ToLower().Trim();
+
+                bool applyMask = !_textureClasses.Contains(normalizedCategory);
+
                 var (mlService, threshold) = _modelManager.GetModelForCategory(category);
 
                 using var stream = image.OpenReadStream();
                 var result = mlService.PredictAnomalyScore(stream, threshold, applyMask);
 
-                return Ok(result);
+                var liteResult = new AnomalyDao
+                {
+                    IsAnomaly = result.IsAnomaly,
+                    Score = result.Score,
+                    UsedThreshold = result.UsedThreshold
+                };
+
+                return Ok(liteResult);
             }
             catch (FileNotFoundException ex)
             {
