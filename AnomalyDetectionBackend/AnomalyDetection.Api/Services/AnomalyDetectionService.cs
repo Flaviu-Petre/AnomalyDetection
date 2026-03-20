@@ -21,7 +21,7 @@ namespace AnomalyDetection.Api.Services
             _padimSession = new InferenceSession(padimModelPath, options);
         }
 
-        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool applyMask = false)
+        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool applyMask = false, bool returnHeatmap = false)
         {
             using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(imageStream);
 
@@ -102,7 +102,11 @@ namespace AnomalyDetection.Api.Services
             }
 
             // Generating the Visual Heatmap
-            string base64Heatmap = GenerateHeatmapBase64(blurredMap, image);
+            string? base64Heatmap = null;
+            if (returnHeatmap)
+            {
+                base64Heatmap = GenerateHeatmapBase64(blurredMap, image);
+            }
 
             return new AnomalyResult
             {

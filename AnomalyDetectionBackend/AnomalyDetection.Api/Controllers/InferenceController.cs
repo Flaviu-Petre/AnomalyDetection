@@ -23,7 +23,7 @@ namespace AnomalyDetection.Api.Controllers
         }
 
         [HttpPost("detect_anomaly")]
-        public IActionResult DetectAnomaly([FromForm] string category, IFormFile image)
+        public IActionResult DetectAnomaly([FromForm] string category, IFormFile image, [FromForm] bool returnHeatmap = false)
         {
             if(string.IsNullOrWhiteSpace(category))
                 return BadRequest("You must provide a category (e.g., 'bottle').");
@@ -40,7 +40,13 @@ namespace AnomalyDetection.Api.Controllers
                 var (mlService, threshold) = _modelManager.GetModelForCategory(category);
 
                 using var stream = image.OpenReadStream();
-                var result = mlService.PredictAnomalyScore(stream, threshold, applyMask);
+
+                var result = mlService.PredictAnomalyScore(stream, threshold, applyMask, returnHeatmap);
+
+                if (returnHeatmap)
+                {
+                    return Ok(result);
+                }
 
                 var liteResult = new AnomalyDao
                 {
