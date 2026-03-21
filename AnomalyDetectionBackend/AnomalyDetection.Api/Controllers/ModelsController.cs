@@ -7,13 +7,18 @@ namespace AnomalyDetection.Api.Controllers
     [Route("api/v1/[controller]")]
     public class ModelsController : ControllerBase
     {
+        #region Fields
         private readonly ModelManagerService _modelManager;
+        #endregion
 
+        #region Constructor
         public ModelsController(ModelManagerService modelManager)
         {
             _modelManager = modelManager;
         }
+        #endregion
 
+        #region Endpoints
         [HttpGet]
         public IActionResult GetModels()
         {
@@ -21,5 +26,6 @@ namespace AnomalyDetection.Api.Controllers
 
             return Ok(models);
         }
+        #endregion
     }
 }

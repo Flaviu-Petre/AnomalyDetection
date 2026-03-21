@@ -11,8 +11,11 @@ namespace AnomalyDetection.Api.Services
 {
     public class AnomalyDetectionService : IDisposable
     {
+        #region Fields
         private readonly InferenceSession _padimSession;
+        #endregion
 
+        #region Constructor
         public AnomalyDetectionService(string padimModelPath)
         {
             var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
@@ -20,7 +23,9 @@ namespace AnomalyDetection.Api.Services
 
             _padimSession = new InferenceSession(padimModelPath, options);
         }
+        #endregion
 
+        #region Public Methods
         public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool applyMask = false, bool returnHeatmap = false)
         {
             using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(imageStream);
@@ -117,6 +122,13 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
+        public void Dispose()
+        {
+            _padimSession.Dispose();
+        }
+        #endregion
+
+        #region Private Methods
         private string GenerateHeatmapBase64(float[] blurredMap, Image<Rgba32> image)
         {
             using Mat maskedBlurredMat = new Mat(224, 224, MatType.CV_32FC1);
@@ -217,10 +229,6 @@ namespace AnomalyDetection.Api.Services
             return finalMask224;
 
         }
-
-        public void Dispose()
-        {
-            _padimSession.Dispose();
-        }
+        #endregion
     }
 }

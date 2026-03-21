@@ -9,6 +9,7 @@ namespace AnomalyDetection.Api.Controllers
     [Route("api/v1/[controller]")]
     public class InferenceController : ControllerBase
     {
+        #region Fields
         private readonly ModelManagerService _modelManager;
         private readonly StatisticsService _statisticsService;
 
@@ -17,13 +18,17 @@ namespace AnomalyDetection.Api.Controllers
             "carpet", "grid", "leather", "tile", "wood",
             "cable", "screw", "transistor", "zipper", "bottle"
         ];
+        #endregion
 
+        #region Constructor
         public InferenceController(ModelManagerService modelManager, StatisticsService statisticsService)
         {
             _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
             _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
         }
+        #endregion
 
+        #region Endpoints
         [HttpPost("detect_anomaly")]
         public IActionResult DetectAnomaly([FromForm] string category, IFormFile image, [FromForm] bool returnHeatmap = false)
         {
@@ -75,5 +80,6 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, $"An error occurred during inference: {ex.Message}");
             }
         }
+        #endregion
     }
 }
