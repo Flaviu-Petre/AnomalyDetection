@@ -9,5 +9,6 @@ namespace AnomalyDetection.Api.Data
         {
         }
         public DbSet<InferenceRecord> InferenceRecords { get; set; }
+        public DbSet<User> Users { get; set; }
     }
 }

@@ -1,5 +1,6 @@
 using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Repositories;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,6 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 builder.Services.AddSingleton<ModelManagerService>();
+
+builder.Services.AddScoped<UserRepository>(); 
+
+builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<FeedbackService>();
 
