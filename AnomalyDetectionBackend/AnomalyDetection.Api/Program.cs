@@ -1,10 +1,11 @@
 using AnomalyDetection.Api.Data;
-using AnomalyDetection.Api.Services;
 using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Services;
 using DotNetEnv;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
 
 Env.Load();
@@ -22,7 +23,23 @@ builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<FeedbackService>();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\nExample: \"eyJhbGci...\""
+    });
+
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", document), new List<string>() }
+    });
+});
+
 builder.Services.AddOpenApi();
 
 string? connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION");
