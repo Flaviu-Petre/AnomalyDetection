@@ -22,7 +22,7 @@ namespace AnomalyDetection.Api.Controllers
         #endregion
 
         #region Endpoints
-        [HttpGet]
+        [HttpGet("get_all_models")]
         public IActionResult GetModels()
         {
             var models = _modelManager.GetAvailableModels();
@@ -30,8 +30,10 @@ namespace AnomalyDetection.Api.Controllers
             return Ok(models);
         }
 
-        [HttpPost]
+        [HttpPost("upload_model")]
         [Authorize(Roles = "Admin")]
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(MultipartBodyLengthLimit = long.MaxValue, ValueLengthLimit = int.MaxValue)]
         public async Task<IActionResult> UploadModel([FromForm] UploadModelRequest request)
         {
             try

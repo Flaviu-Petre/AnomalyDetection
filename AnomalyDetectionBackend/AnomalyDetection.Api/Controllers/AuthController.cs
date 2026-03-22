@@ -25,13 +25,13 @@ namespace AnomalyDetection.Api.Controllers
 
         #region Endpoints
         [HttpPost("register")]
-        public IActionResult Register([FromBody] LoginRequest request)
+        public IActionResult Register([FromBody] RegisterRequest request)
         {
             if (_authService.IsUsernameTaken(request.Username))
             {
                 return BadRequest("Username already exists.");
             }
-            _authService.RegisterUser(request.Username, request.Password);
+            _authService.RegisterUser(request.Username, request.Password, request.AdminSecretCode);
 
             return Ok("User registered successfully!");
         }
