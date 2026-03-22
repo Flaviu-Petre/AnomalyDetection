@@ -399,3 +399,14 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# =========================
+# Machine Learning Artifacts
+# =========================
+
+ModelWeights/
+
+*.onnx
+*.onnx.data
+
+AnomalyDetectionBackend/AnomalyDetection.Api/.env
