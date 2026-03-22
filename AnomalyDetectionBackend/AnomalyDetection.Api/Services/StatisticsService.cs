@@ -1,19 +1,19 @@
-﻿using System;
-using AnomalyDetection.Api.Data;
+﻿using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models;
+using AnomalyDetection.Api.Repositories;
 
 namespace AnomalyDetection.Api.Services
 {
     public class StatisticsService
     {
         #region Fields
-        private readonly AppDbContext _db;
+        private readonly StatisticsRepository _statisticsRepo;
         #endregion
 
         #region Constructor
-        public StatisticsService(AppDbContext db)
+        public StatisticsService(StatisticsRepository statisticsRepo)
         {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
+            _statisticsRepo = statisticsRepo ?? throw new ArgumentNullException(nameof(statisticsRepo));
         }
         #endregion
 
@@ -29,8 +29,7 @@ namespace AnomalyDetection.Api.Services
                 Timestamp = DateTime.UtcNow
             };
 
-            _db.InferenceRecords.Add(record);
-            _db.SaveChanges();
+            _statisticsRepo.AddInferenceRecord(record);
         }
         #endregion
     }
