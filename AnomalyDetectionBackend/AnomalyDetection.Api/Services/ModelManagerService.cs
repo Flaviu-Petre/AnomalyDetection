@@ -134,6 +134,36 @@ namespace AnomalyDetection.Api.Services
 
             _logger.LogInformation("Successfully uploaded and refreshed model for category: {Category}", normalizedCategory);
         }
+
+        public void DeleteModel(string category)
+        {
+            string normalizedCategory = category.ToLower().Trim();
+
+            if (normalizedCategory.Contains("..") || normalizedCategory.Contains("/") || normalizedCategory.Contains("\\"))
+            {
+                throw new ArgumentException("Invalid category name.");
+            }
+
+            string categoryPath = Path.Combine(_modelStorageDirectory, normalizedCategory);
+
+            _activeServices.TryRemove(normalizedCategory, out var activeService);
+            if (activeService != null)
+            {
+                activeService.Dispose();
+            }
+
+            _metadataCache.TryRemove(normalizedCategory, out _);
+
+            if (Directory.Exists(categoryPath))
+            {
+                Directory.Delete(categoryPath, true);
+                _logger.LogInformation("Deleted model directory and cleared memory for category: {Category}", normalizedCategory);
+            }
+            else
+            {
+                throw new DirectoryNotFoundException($"Model directory for '{normalizedCategory}' does not exist.");
+            }
+        }
         #endregion
     }
 }

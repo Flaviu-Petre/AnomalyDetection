@@ -56,6 +56,34 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, $"Internal server error while saving model: {ex.Message}");
             }
         }
+
+        [HttpDelete("delete_category")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult DeleteModel(string category)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(category))
+                    return BadRequest("Category is required.");
+
+                _modelManager.DeleteModel(category);
+
+                return Ok(new { Message = $"Successfully deleted the model and cleared memory for category: {category}" });
+            }
+            catch (DirectoryNotFoundException ex)
+            { 
+                return NotFound(new { Error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = $"Internal server error while deleting model: {ex.Message}" });
+            }
+        }
+
         #endregion
     }
 }
