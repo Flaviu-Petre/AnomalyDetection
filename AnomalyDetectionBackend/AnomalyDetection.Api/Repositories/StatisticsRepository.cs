@@ -22,6 +22,13 @@ namespace AnomalyDetection.Api.Repositories
             _db.InferenceRecords.Add(record);
             _db.SaveChanges();
         }
+
+        public List<InferenceRecord> GetRecordsSince(DateTime startDate)
+        {
+            return _db.InferenceRecords
+                      .Where(r => r.Timestamp >= startDate)
+                      .ToList();
+        }
         #endregion
     }
 }
