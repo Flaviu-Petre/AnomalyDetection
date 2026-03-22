@@ -1,10 +1,9 @@
-﻿namespace AnomalyDetection.Api.Models
+﻿namespace AnomalyDetection.Api.Models.DTOs
 {
-    public class AnomalyResult
+    public class AnomalyResponse
     {
         public bool IsAnomaly { get; set; }
         public float Score { get; set; }
         public float UsedThreshold { get; set; }
-        public string? HeatmapBase64 { get; set; }
     }
 }

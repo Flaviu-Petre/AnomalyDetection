@@ -1,4 +1,4 @@
-﻿namespace AnomalyDetection.Api.Models
+﻿namespace AnomalyDetection.Api.Models.Entities
 {
     public class InferenceRecord
     {

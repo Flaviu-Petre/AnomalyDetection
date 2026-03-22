@@ -1,4 +1,4 @@
-﻿using AnomalyDetection.Api.Models;
+﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Rewrite;
@@ -55,7 +55,7 @@ namespace AnomalyDetection.Api.Controllers
                     return Ok(result);
                 }
 
-                var liteResult = new AnomalyDao
+                var liteResult = new AnomalyResponse
                 {
                     IsAnomaly = result.IsAnomaly,
                     Score = result.Score,

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
-using AnomalyDetection.Api.Models;
-using Microsoft.Extensions.Logging;
+using AnomalyDetection.Api.Models.DTOs;
+using AnomalyDetection.Api.Models.Domain;
 
 namespace AnomalyDetection.Api.Services
 {

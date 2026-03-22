@@ -1,4 +1,4 @@
-﻿using AnomalyDetection.Api.Models;
+﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 

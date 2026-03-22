@@ -1,4 +1,4 @@
-﻿using AnomalyDetection.Api.Models;
+﻿using AnomalyDetection.Api.Models.Domain;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace AnomalyDetection.Api.Models
+namespace AnomalyDetection.Api.Models.Domain
 {
     public class ModelMetadata
     {

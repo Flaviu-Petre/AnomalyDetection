@@ -1,4 +1,4 @@
-﻿using AnomalyDetection.Api.Models;
+﻿using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories;
 
 namespace AnomalyDetection.Api.Services

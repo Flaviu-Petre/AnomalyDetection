@@ -1,4 +1,4 @@
-﻿namespace AnomalyDetection.Api.Models
+﻿namespace AnomalyDetection.Api.Models.DTOs
 {
     public class LoginRequest
     {

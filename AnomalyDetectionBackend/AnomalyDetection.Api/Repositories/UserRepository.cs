@@ -1,5 +1,5 @@
 ﻿using AnomalyDetection.Api.Data;
-using AnomalyDetection.Api.Models;
+using AnomalyDetection.Api.Models.Entities;
 
 namespace AnomalyDetection.Api.Repositories
 {
