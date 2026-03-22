@@ -91,6 +91,49 @@ namespace AnomalyDetection.Api.Services
 
             return availableModels;
         }
+
+        public async Task UploadNewModelAsync(string category, IFormFile onnxModel, IFormFile? onnxData, IFormFile jsonMetadata)
+        {
+            string normalizedCategory = category.ToLower().Trim();
+
+            string categoryPath = Path.Combine(_modelStorageDirectory, normalizedCategory);
+            if (!Directory.Exists(categoryPath))
+            {
+                Directory.CreateDirectory(categoryPath);
+            }
+
+            string modelFilePath = Path.Combine(categoryPath, $"padim_model_{normalizedCategory}.onnx");
+            string metaFilePath = Path.Combine(categoryPath, $"metadata_{normalizedCategory}.json");
+
+            using (var stream = new FileStream(modelFilePath, FileMode.Create))
+            {
+                await onnxModel.CopyToAsync(stream);
+            }
+
+            if (onnxData != null)
+            {
+                string dataFilePath = $"{modelFilePath}.data";
+                using (var stream = new FileStream(dataFilePath, FileMode.Create))
+                {
+                    await onnxData.CopyToAsync(stream);
+                }
+            }
+
+            using (var stream = new FileStream(metaFilePath, FileMode.Create))
+            {
+                await jsonMetadata.CopyToAsync(stream);
+            }
+
+            _activeServices.TryRemove(normalizedCategory, out var oldService);
+            if (oldService != null)
+            {
+                oldService.Dispose();
+            }
+
+            _metadataCache.TryRemove(normalizedCategory, out _);
+
+            _logger.LogInformation("Successfully uploaded and refreshed model for category: {Category}", normalizedCategory);
+        }
         #endregion
     }
 }
