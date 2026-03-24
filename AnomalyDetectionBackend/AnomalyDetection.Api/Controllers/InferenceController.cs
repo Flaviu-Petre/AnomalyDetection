@@ -50,6 +50,13 @@ namespace AnomalyDetection.Api.Controllers
 
                 var result = mlService.PredictAnomalyScore(stream, threshold, applyMask, returnHeatmap);
 
+                _statisticsService.SaveInferenceResult(
+                    normalizedCategory,
+                    result.IsAnomaly,
+                    result.Score,
+                    result.UsedThreshold
+                );
+
                 if (returnHeatmap)
                 {
                     return Ok(result);
@@ -61,13 +68,6 @@ namespace AnomalyDetection.Api.Controllers
                     Score = result.Score,
                     UsedThreshold = result.UsedThreshold
                 };
-
-                _statisticsService.SaveInferenceResult(
-                    normalizedCategory,
-                    liteResult.IsAnomaly,
-                    liteResult.Score,
-                    liteResult.UsedThreshold
-                );
 
                 return Ok(liteResult);
             }
