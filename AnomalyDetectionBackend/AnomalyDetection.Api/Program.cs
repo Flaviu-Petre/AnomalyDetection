@@ -23,6 +23,16 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<FeedbackService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowNextJsFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") 
+              .AllowAnyHeader()  
+              .AllowAnyMethod(); 
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -77,6 +87,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowNextJsFrontend");
 
 app.UseAuthentication();
 
