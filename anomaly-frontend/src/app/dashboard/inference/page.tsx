@@ -67,12 +67,12 @@ export default function InferencePage() {
       
       {/* Upload & Configuration Card */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-6">Run AI Inspection</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Run AI inspection</h3>
         
         {/* Configuration Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Part Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Part category</label>
             <select 
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -121,7 +121,7 @@ export default function InferencePage() {
             disabled={!selectedFile || isLoading}
             className="px-6 py-2 bg-blue-700 text-white font-semibold rounded-md shadow-sm hover:bg-blue-800 disabled:bg-gray-400 transition-colors"
           >
-            {isLoading ? "Analyzing..." : "Run AI Inference"}
+            {isLoading ? "Analyzing..." : "Run AI inference"}
           </button>
         </div>
 
@@ -149,7 +149,7 @@ export default function InferencePage() {
             {result?.heatmapBase64 && (
               <div className="p-6 rounded-xl shadow-sm border border-red-200 bg-red-50">
                 <h3 className="text-sm font-semibold text-red-600 mb-4 uppercase tracking-wider flex items-center gap-2">
-                  <span>🔥</span> Anomaly Heatmap
+                  <span></span> Anomaly Heatmap
                 </h3>
                 <img 
                   src={`data:image/jpeg;base64,${result.heatmapBase64}`} 
@@ -179,11 +179,11 @@ export default function InferencePage() {
                 
                 <div className="w-full text-left space-y-3 mt-4 bg-gray-50 p-5 rounded-lg border border-gray-200">
                   <p className="text-sm text-gray-600 flex justify-between border-b pb-2">
-                    <strong>Anomaly Score:</strong> 
+                    <strong>Anomaly score:</strong> 
                     <span className="text-gray-900 font-mono">{result.score?.toFixed(4) || "N/A"}</span>
                   </p>
                   <p className="text-sm text-gray-600 flex justify-between border-b pb-2">
-                    <strong>Threshold Limit:</strong> 
+                    <strong>Threshold limit:</strong> 
                     <span className="text-gray-900 font-mono">{result.usedThreshold?.toFixed(4) || "N/A"}</span>
                   </p>
                 </div>
