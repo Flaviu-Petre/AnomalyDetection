@@ -30,7 +30,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           username: username,
           password: password,
-          adminSecretCode: adminSecret || null // <-- THIS IS THE FIX!
+          adminSecretCode: adminSecret || null
         }),
       });
 

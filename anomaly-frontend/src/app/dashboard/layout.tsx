@@ -63,7 +63,7 @@ export default function DashboardLayout({
           {/* ROLE-BASED UI: Only show Model Manager to Admins! */}
           {userRole === "Admin" && (
             <Link href="/dashboard/models" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/models' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
-              Model Manager (Admin)
+              Model manager
             </Link>
           )}
         </nav>
@@ -84,10 +84,10 @@ export default function DashboardLayout({
         {/* GLOBAL TOP HEADER */}
         <header className="bg-white shadow-sm z-10 p-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-800">
-            {pathname === '/dashboard' ? 'System Overview' : 
-             pathname === '/dashboard/inference' ? 'Run Inference' :
-             pathname === '/dashboard/history' ? 'Inference History' :
-             pathname === '/dashboard/models' ? 'Model Manager' : ''}
+            {pathname === '/dashboard' ? 'System overview' : 
+             pathname === '/dashboard/inference' ? 'Run inference' :
+             pathname === '/dashboard/history' ? 'Inference history' :
+             pathname === '/dashboard/models' ? 'Model manager' : ''}
           </h2>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">
