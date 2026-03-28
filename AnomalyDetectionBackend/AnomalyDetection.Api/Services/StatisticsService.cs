@@ -67,6 +67,18 @@ namespace AnomalyDetection.Api.Services
                 InferencesByDay = inferencesByDay
             };
         }
+
+        public List<InferenceRecord> GetInferenceHistory(string username, string role)
+        {
+            var records = _statisticsRepo.GetRecordsSince(DateTime.UtcNow.AddDays(-30));
+
+            if (role != "Admin")
+            {
+                records = records.Where(r => r.Username == username).ToList();
+            }
+
+            return records.OrderByDescending(r => r.Timestamp).ToList();
+        }
         #endregion
     }
 }
