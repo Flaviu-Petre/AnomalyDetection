@@ -15,6 +15,10 @@ export default function InferencePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   // --- INITIAL DATA LOAD ---
   useEffect(() => {
@@ -49,13 +53,17 @@ export default function InferencePage() {
     fetchModels();
   }, []);
 
+  // --- EVENT HANDLERS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
+      
       setResult(null);
       setErrorMessage("");
+      setFeedbackSubmitted(false);
+      setFeedbackMessage("");
     }
   };
 
@@ -65,6 +73,8 @@ export default function InferencePage() {
     setIsLoading(true);
     setErrorMessage("");
     setResult(null);
+    setFeedbackSubmitted(false);
+    setFeedbackMessage("");
 
     try {
       const token = localStorage.getItem("token");
@@ -95,6 +105,43 @@ export default function InferencePage() {
       setErrorMessage("Could not connect to the server. Is the API running?");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFeedback = async (isCorrect: boolean) => {
+    if (!selectedFile || !category || !result) return;
+
+    setIsSubmittingFeedback(true);
+    setFeedbackMessage("");
+
+    try {
+      const token = localStorage.getItem("token");
+      
+      const actualAnomalyState = isCorrect ? result.isAnomaly : !result.isAnomaly;
+
+      const formData = new FormData();
+      formData.append("category", category);
+      formData.append("image", selectedFile);
+      formData.append("isActuallyAnomaly", actualAnomalyState.toString());
+
+      const response = await fetch("https://localhost:7136/api/v1/Feedback", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        setFeedbackSubmitted(true);
+        setFeedbackMessage("Thank you! Feedback saved for model retraining.");
+      } else {
+        setFeedbackMessage("Failed to submit feedback. Please try again.");
+      }
+    } catch (error) {
+      setFeedbackMessage("Could not connect to server to submit feedback.");
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -203,7 +250,7 @@ export default function InferencePage() {
 
           {/* COLUMN 2: Analysis result (MIDDLE) */}
           <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col h-full">
-            <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider">Analysis Result</h3>
+            <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider">Analysis result</h3>
             
             {isLoading && (
               <div className="flex-1 flex flex-col items-center justify-center text-blue-600 animate-pulse py-12">
@@ -238,6 +285,38 @@ export default function InferencePage() {
                     <span className="text-gray-900 font-mono text-lg">{result.usedThreshold?.toFixed(4) || "N/A"}</span>
                   </p>
                 </div>
+
+                {/* Feedback */}
+                <div className="w-full mt-4 pt-4 border-t border-gray-100">
+                  {!feedbackSubmitted ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-600 mb-3">Did the AI get this right?</p>
+                      <div className="flex justify-center gap-3">
+                        <button
+                          onClick={() => handleFeedback(true)}
+                          disabled={isSubmittingFeedback}
+                          className="px-5 py-2 bg-gray-100 hover:bg-green-100 hover:text-green-800 text-gray-700 text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(false)}
+                          disabled={isSubmittingFeedback}
+                          className="px-5 py-2 bg-gray-100 hover:bg-red-100 hover:text-red-800 text-gray-700 text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+                        >
+                          No (Report)
+                        </button>
+                      </div>
+                      {feedbackMessage && <p className="text-red-600 text-xs mt-3 font-medium">{feedbackMessage}</p>}
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center text-green-700 text-sm font-medium gap-2 p-3 bg-green-50 rounded-md border border-green-200">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                      {feedbackMessage}
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
           </div>
