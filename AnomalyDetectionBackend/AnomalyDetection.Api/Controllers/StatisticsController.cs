@@ -2,12 +2,13 @@
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class StatisticsController : ControllerBase
     {
         #region Fields
@@ -27,7 +28,11 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                var stats = _statisticsService.GetWeeklyStatistics();
+                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+                string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+
+                var stats = _statisticsService.GetWeeklyStatistics(username, role);
+
                 return Ok(stats);
             }
             catch (Exception ex)

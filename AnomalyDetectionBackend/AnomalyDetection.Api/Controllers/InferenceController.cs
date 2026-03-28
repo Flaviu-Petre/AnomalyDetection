@@ -1,7 +1,9 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Rewrite;
+using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
@@ -30,6 +32,7 @@ namespace AnomalyDetection.Api.Controllers
 
         #region Endpoints
         [HttpPost("detect_anomaly")]
+        [Authorize]
         public IActionResult DetectAnomaly([FromForm] string category, IFormFile image, [FromForm] bool returnHeatmap = false)
         {
             if(string.IsNullOrWhiteSpace(category))
@@ -50,11 +53,14 @@ namespace AnomalyDetection.Api.Controllers
 
                 var result = mlService.PredictAnomalyScore(stream, threshold, applyMask, returnHeatmap);
 
+                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+
                 _statisticsService.SaveInferenceResult(
                     normalizedCategory,
                     result.IsAnomaly,
                     result.Score,
-                    result.UsedThreshold
+                    result.UsedThreshold,
+                    username
                 );
 
                 if (returnHeatmap)
