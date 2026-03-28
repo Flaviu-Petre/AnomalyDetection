@@ -1,6 +1,7 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories;
+using System.Data;
 
 namespace AnomalyDetection.Api.Services
 {
@@ -18,7 +19,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Methods
-        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold)
+        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold, string username)
         {
             var record = new InferenceRecord
             {
@@ -26,17 +27,23 @@ namespace AnomalyDetection.Api.Services
                 IsAnomaly = isAnomaly,
                 Score = score,
                 ThresholdUsed = threshold,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                Username = username
             };
 
             _statisticsRepo.AddInferenceRecord(record);
         }
 
-        public DashboardStatsResponse GetWeeklyStatistics()
+        public DashboardStatsResponse GetWeeklyStatistics(string username, string role)
         {
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 
             var records = _statisticsRepo.GetRecordsSince(sevenDaysAgo);
+
+            if (role != "Admin")
+            {
+                records = records.Where(r => r.Username == username).ToList();
+            }
 
             int totalInferences = records.Count;
             int totalAnomalies = records.Count(r => r.IsAnomaly);
