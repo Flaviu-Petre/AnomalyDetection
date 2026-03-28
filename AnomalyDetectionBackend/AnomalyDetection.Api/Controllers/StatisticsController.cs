@@ -40,6 +40,24 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, $"Internal server error while fetching statistics: {ex.Message}");
             }
         }
+
+        [HttpGet("history")]
+        public IActionResult GetHistory()
+        {
+            try
+            {
+                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+                string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
+
+                var history = _statisticsService.GetInferenceHistory(username, role);
+
+                return Ok(history);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error while fetching history: {ex.Message}");
+            }
+        }
         #endregion
     }
 }
