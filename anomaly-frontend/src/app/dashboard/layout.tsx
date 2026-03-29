@@ -11,31 +11,26 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname(); 
-  
-  const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  useEffect(() => {
+ useEffect(() => {
     const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role"); 
-    
     if (!token) {
       router.push("/login");
-    } else {
-      setUserRole(role);
-      setIsLoading(false);
+      return;
     }
+
+    const role = localStorage.getItem("role");
+    setUserRole(role);
   }, [router]);
+
+  const isActive = (path: string) => pathname === path;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     router.push("/login");
   };
-
-  if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-gray-50 text-blue-900 font-bold">Loading FactoryOS...</div>;
-  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -60,11 +55,16 @@ export default function DashboardLayout({
             Inference History
           </Link>
 
-          {/* ROLE-BASED UI: Only show Model Manager to Admins! */}
+          {/* ROLE-BASED UI: Only show Model Manager and User Manager to Admins! */}
           {userRole === "Admin" && (
-            <Link href="/dashboard/models" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/models' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
-              Model manager
-            </Link>
+            <>
+              <Link href="/dashboard/models" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/models' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
+                Model manager
+              </Link>
+              <Link href="/dashboard/users" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/users' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
+                Manage users
+              </Link>
+            </>
           )}
         </nav>
 
@@ -87,7 +87,8 @@ export default function DashboardLayout({
             {pathname === '/dashboard' ? 'System overview' : 
              pathname === '/dashboard/inference' ? 'Run inference' :
              pathname === '/dashboard/history' ? 'Inference history' :
-             pathname === '/dashboard/models' ? 'Model manager' : ''}
+             pathname === '/dashboard/models' ? 'Model manager' : 
+             pathname === '/dashboard/users' ? 'User management' : ''}
           </h2>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">

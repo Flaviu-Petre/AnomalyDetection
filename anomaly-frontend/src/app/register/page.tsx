@@ -9,7 +9,6 @@ export default function RegisterPage() {
   
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [adminSecret, setAdminSecret] = useState("");
   
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -29,8 +28,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           username: username,
-          password: password,
-          adminSecretCode: adminSecret || null
+          password: password
         }),
       });
 
@@ -99,19 +97,6 @@ export default function RegisterPage() {
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Admin Secret Code <span className="text-gray-400 font-normal">(Optional)</span>
-            </label>
-            <input
-              type="password"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              value={adminSecret}
-              onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="Leave blank for standard user"
             />
           </div>
 
