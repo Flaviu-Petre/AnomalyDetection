@@ -31,7 +31,7 @@ namespace AnomalyDetection.Api.Controllers
             {
                 return BadRequest("Username already exists.");
             }
-            _authService.RegisterUser(request.Username, request.Password, request.AdminSecretCode);
+            _authService.RegisterUser(request.Username, request.Password);
 
             return Ok("User registered successfully!");
         }

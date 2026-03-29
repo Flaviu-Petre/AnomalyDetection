@@ -22,7 +22,7 @@ namespace AnomalyDetection.Api.Services
             return _userRepo.UserExists(username);
         }
 
-        public void RegisterUser(string username, string rawPassword, string? providedSecretCode)
+        public void RegisterUser(string username, string rawPassword)
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(rawPassword);
 
