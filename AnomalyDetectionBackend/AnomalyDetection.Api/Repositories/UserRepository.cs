@@ -32,6 +32,23 @@ namespace AnomalyDetection.Api.Repositories
             _db.Users.Add(user);
             _db.SaveChanges();
         }
+
+        public List<User> GetAllUsers()
+        {
+            return _db.Users
+                .Select(u => new User { Id = u.Id, Username = u.Username, Role = u.Role })
+                .ToList();
+        }
+
+        public void UpdateUserRole(int userId, string newRole)
+        {
+            var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+            if (user != null)
+            {
+                user.Role = newRole;
+                _db.SaveChanges();
+            }
+        }
         #endregion
     }
 }
