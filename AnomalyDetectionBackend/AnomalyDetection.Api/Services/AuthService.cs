@@ -22,24 +22,15 @@ namespace AnomalyDetection.Api.Services
             return _userRepo.UserExists(username);
         }
 
-        public void RegisterUser(string username, string rawPassword, string? providedSecretCode)
+        public void RegisterUser(string username, string rawPassword)
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(rawPassword);
-
-            string actualSecretCode = Environment.GetEnvironmentVariable("ADMIN_SECRET_CODE")
-                ?? "FALLBACK_SECRET_DO_NOT_USE";
-
-            string assignedRole = "User";
-            if (!string.IsNullOrWhiteSpace(providedSecretCode) && providedSecretCode == actualSecretCode)
-            {
-                assignedRole = "Admin";
-            }
 
             var newUser = new User
             {
                 Username = username,
                 PasswordHash = hashedPassword,
-                Role = assignedRole
+                Role = "User"
             };
 
             _userRepo.AddUser(newUser);
