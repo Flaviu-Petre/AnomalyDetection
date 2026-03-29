@@ -26,20 +26,11 @@ namespace AnomalyDetection.Api.Services
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(rawPassword);
 
-            string actualSecretCode = Environment.GetEnvironmentVariable("ADMIN_SECRET_CODE")
-                ?? "FALLBACK_SECRET_DO_NOT_USE";
-
-            string assignedRole = "User";
-            if (!string.IsNullOrWhiteSpace(providedSecretCode) && providedSecretCode == actualSecretCode)
-            {
-                assignedRole = "Admin";
-            }
-
             var newUser = new User
             {
                 Username = username,
                 PasswordHash = hashedPassword,
-                Role = assignedRole
+                Role = "User"
             };
 
             _userRepo.AddUser(newUser);
