@@ -33,7 +33,7 @@ namespace AnomalyDetection.Api.Controllers
         #region Endpoints
         [HttpPost("detect_anomaly")]
         [Authorize]
-        public async Task<IActionResult> DetectAnomaly([FromForm] IFormFile image, [FromForm] bool returnHeatmap = false)
+        public async Task<IActionResult> DetectAnomaly(IFormFile image, [FromForm] bool returnHeatmap = false)
         {
             if (image == null || image.Length == 0)
                 return BadRequest("No image file was uploaded.");
