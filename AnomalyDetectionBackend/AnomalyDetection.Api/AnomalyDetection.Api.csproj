@@ -27,6 +27,16 @@
 
   <ItemGroup>
     <Folder Include="ModelWeights\bottle\" />
+    <Folder Include="RouterModel\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="RouterModel\router.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="RouterModel\router.onnx.data">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
