@@ -22,6 +22,7 @@ builder.Services.AddScoped<StatisticsRepository>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<FeedbackService>();
+builder.Services.AddScoped<UserService>();
 
 builder.Services.AddCors(options =>
 {
