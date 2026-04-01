@@ -33,23 +33,21 @@ namespace AnomalyDetection.Api.Controllers
         #region Endpoints
         [HttpPost("detect_anomaly")]
         [Authorize]
-        public IActionResult DetectAnomaly([FromForm] string category, IFormFile image, [FromForm] bool returnHeatmap = false)
+        public async Task<IActionResult> DetectAnomaly([FromForm] IFormFile image, [FromForm] bool returnHeatmap = false)
         {
-            if(string.IsNullOrWhiteSpace(category))
-                return BadRequest("You must provide a category (e.g., 'bottle').");
-
             if (image == null || image.Length == 0)
                 return BadRequest("No image file was uploaded.");
 
             try
             {
-                string normalizedCategory = category.ToLower().Trim();
+                using var stream = image.OpenReadStream();
+
+                string predictedCategory = await AnomalyDetectionService.ClassifyImageCategoryAsync(stream);
+                string normalizedCategory = predictedCategory.ToLower().Trim();
 
                 bool applyMask = !_textureClasses.Contains(normalizedCategory);
 
-                var (mlService, threshold) = _modelManager.GetModelForCategory(category);
-
-                using var stream = image.OpenReadStream();
+                var (mlService, threshold) = _modelManager.GetModelForCategory(normalizedCategory);
 
                 var result = mlService.PredictAnomalyScore(stream, threshold, applyMask, returnHeatmap);
 
@@ -63,19 +61,16 @@ namespace AnomalyDetection.Api.Controllers
                     username
                 );
 
-                if (returnHeatmap)
+                var response = new AnomalyResponse
                 {
-                    return Ok(result);
-                }
-
-                var liteResult = new AnomalyResponse
-                {
+                    PredictedCategory = normalizedCategory,
                     IsAnomaly = result.IsAnomaly,
                     Score = result.Score,
-                    UsedThreshold = result.UsedThreshold
+                    UsedThreshold = result.UsedThreshold,
+                    HeatmapBase64 = result.HeatmapBase64
                 };
 
-                return Ok(liteResult);
+                return Ok(response);
             }
             catch (FileNotFoundException ex)
             {

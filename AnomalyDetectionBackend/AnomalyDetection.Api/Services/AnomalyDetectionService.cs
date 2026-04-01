@@ -231,7 +231,7 @@ namespace AnomalyDetection.Api.Services
 
         }
 
-        public static Task<string> ClassifyImageCategoryAsync(Stream imageStream)
+        public static async Task<string> ClassifyImageCategoryAsync(Stream imageStream)
         {
             imageStream.Position = 0;
 
