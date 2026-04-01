@@ -1,57 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function InferencePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
-  const [categories, setCategories] = useState<string[]>([]);
-  const [category, setCategory] = useState("");
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  
+
   const [requestHeatmap, setRequestHeatmap] = useState(true);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  
+
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
-
-  // --- INITIAL DATA LOAD ---
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("https://localhost:7136/api/v1/Models/get_all_models", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const categoryNames = data.map((model: { category: string, threshold: number }) => model.category);
-          
-          setCategories(categoryNames);
-          
-          if (categoryNames.length > 0) {
-            setCategory(categoryNames[0]);
-          }
-        } else {
-          setErrorMessage("Failed to load available AI models.");
-        }
-      } catch (error) {
-        setErrorMessage("Could not connect to the server to fetch models.");
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    };
-
-    fetchModels();
-  }, []);
 
   // --- EVENT HANDLERS ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +22,7 @@ export default function InferencePage() {
     if (file) {
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
-      
+
       setResult(null);
       setErrorMessage("");
       setFeedbackSubmitted(false);
@@ -68,7 +31,7 @@ export default function InferencePage() {
   };
 
   const handleRunInference = async () => {
-    if (!selectedFile || !category) return; 
+    if (!selectedFile) return;
 
     setIsLoading(true);
     setErrorMessage("");
@@ -80,7 +43,6 @@ export default function InferencePage() {
       const token = localStorage.getItem("token");
 
       const formData = new FormData();
-      formData.append("category", category);
       formData.append("image", selectedFile);
       formData.append("returnHeatmap", requestHeatmap.toString());
 
@@ -109,18 +71,18 @@ export default function InferencePage() {
   };
 
   const handleFeedback = async (isCorrect: boolean) => {
-    if (!selectedFile || !category || !result) return;
+    if (!selectedFile || !result || !result.predictedCategory) return;
 
     setIsSubmittingFeedback(true);
     setFeedbackMessage("");
 
     try {
       const token = localStorage.getItem("token");
-      
+
       const actualAnomalyState = isCorrect ? result.isAnomaly : !result.isAnomaly;
 
       const formData = new FormData();
-      formData.append("category", category);
+      formData.append("category", result.predictedCategory);
       formData.append("image", selectedFile);
       formData.append("isActuallyAnomaly", actualAnomalyState.toString());
 
@@ -146,6 +108,7 @@ export default function InferencePage() {
   };
 
   const formatCategoryName = (cat: string) => {
+    if (!cat) return "Unknown";
     return cat.split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
@@ -154,53 +117,34 @@ export default function InferencePage() {
   // --- UI RENDER ---
   return (
     <div className="max-w-400 mx-auto space-y-8">
-      
+
       {/* Upload & Configuration Card */}
       <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
         <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800">Run AI Inspection</h3>
-            
-            <button
-                onClick={handleRunInference}
-                disabled={!selectedFile || isLoading || isLoadingCategories || categories.length === 0}
-                className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg shadow hover:bg-blue-800 disabled:bg-gray-400 transition-colors text-base flex items-center gap-2"
-            >
-                {isLoading ? (
-                    <>
-                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        Analyzing...
-                    </>
-                ) : "Run AI Inference"}
-            </button>
+          <h3 className="text-xl font-semibold text-gray-800">Run AI Inspection</h3>
+
+          <button
+            onClick={handleRunInference}
+            disabled={!selectedFile || isLoading}
+            className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg shadow hover:bg-blue-800 disabled:bg-gray-400 transition-colors text-base flex items-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Analyzing...
+              </>
+            ) : "Run AI Inference"}
+          </button>
         </div>
-        
+
         {/* Configuration Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b border-gray-100">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Part category</label>
-            <select 
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              disabled={isLoadingCategories || categories.length === 0}
-              className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm disabled:bg-gray-100 disabled:text-gray-500"
-            >
-              {isLoadingCategories ? (
-                <option value="" disabled>Loading available models...</option>
-              ) : categories.length === 0 ? (
-                <option value="" disabled>No models found on server</option>
-              ) : (
-                categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {formatCategoryName(cat)}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-          
-          <div className="flex items-center mt-6">
-            <input 
-              type="checkbox" 
+        <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
+          <p className="text-sm text-gray-500">
+            Upload an image below. Optionally, you can disable the heatmap generation to speed up inference if you don't need visual explanations.
+          </p>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
               id="heatmap-toggle"
               checked={requestHeatmap}
               onChange={(e) => setRequestHeatmap(e.target.checked)}
@@ -208,7 +152,6 @@ export default function InferencePage() {
             />
             <label htmlFor="heatmap-toggle" className="ml-3 block text-sm font-medium text-gray-700 cursor-pointer">
               Generate visual heatmap
-              <span className="block text-xs text-gray-500 font-normal mt-0.5">Highly recommended for human inspection</span>
             </label>
           </div>
         </div>
@@ -235,23 +178,23 @@ export default function InferencePage() {
       {/* Results Section */}
       {(previewUrl || result || isLoading) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           {/* COLUMN 1: Initial Image (LEFT) */}
           <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider">Source Image</h3>
             {previewUrl ? (
               <img src={previewUrl} alt="Preview" className="w-full h-auto rounded-lg border border-gray-200 shadow-sm" />
             ) : (
-                <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                    Awaiting upload
-                </div>
+              <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                Awaiting upload
+              </div>
             )}
           </div>
 
           {/* COLUMN 2: Analysis result (MIDDLE) */}
           <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col h-full">
             <h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider">Analysis result</h3>
-            
+
             {isLoading && (
               <div className="flex-1 flex flex-col items-center justify-center text-blue-600 animate-pulse py-12">
                 <svg className="w-16 h-16 mb-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -261,27 +204,32 @@ export default function InferencePage() {
 
             {!result && !isLoading && (
               <div className="flex-1 flex items-center justify-center text-gray-400 py-12 text-sm text-center">
-                Select a category, upload an image, and click "Run AI Inference" to see results.
+                Upload an image and click "Run AI Inference" to see results.
               </div>
             )}
 
             {result && !isLoading && (
               <div className="flex flex-col justify-center items-center text-center space-y-5 flex-1">
+
+                {/* AI Predicted Category Badge! */}
+                <div className="w-full mb-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">AI detected category</p>
+                  <span className="inline-block px-4 py-1.5 bg-blue-100 text-blue-800 font-bold rounded-md border border-blue-200 text-sm">
+                    {formatCategoryName(result.predictedCategory)}
+                  </span>
+                </div>
+
                 <div className={`text-3xl font-bold px-8 py-4 rounded-full w-full border ${result.isAnomaly ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
                   {result.isAnomaly ? "ANOMALY" : "NORMAL"}
                 </div>
-                
+
                 <div className="w-full text-left space-y-4 bg-gray-50 p-6 rounded-lg border border-gray-200 flex-1">
                   <p className="text-base text-gray-600 flex justify-between border-b pb-3">
-                    <strong>Category:</strong> 
-                    <span className="text-gray-900 font-medium">{formatCategoryName(category)}</span>
-                  </p>
-                  <p className="text-base text-gray-600 flex justify-between border-b pb-3">
-                    <strong>Anomaly score:</strong> 
+                    <strong>Anomaly score:</strong>
                     <span className="text-gray-900 font-mono text-lg">{result.score?.toFixed(4) || "N/A"}</span>
                   </p>
                   <p className="text-base text-gray-600 flex justify-between">
-                    <strong>Threshold limit:</strong> 
+                    <strong>Threshold limit:</strong>
                     <span className="text-gray-900 font-mono text-lg">{result.usedThreshold?.toFixed(4) || "N/A"}</span>
                   </p>
                 </div>
@@ -324,33 +272,33 @@ export default function InferencePage() {
           {/* COLUMN 3: Heatmap (RIGHT) */}
           <div className={`p-6 rounded-xl shadow-lg border ${result?.isAnomaly && result?.heatmapBase64 ? 'border-red-300 bg-red-50' : 'bg-white border-gray-200'}`}>
             <h3 className={`text-sm font-semibold mb-4 uppercase tracking-wider flex items-center gap-2 ${result?.isAnomaly && result?.heatmapBase64 ? 'text-red-700' : 'text-gray-500'}`}>
-                AI Heatmap
+              AI Heatmap
             </h3>
-            
+
             {result?.heatmapBase64 ? (
-                <img 
-                    src={`data:image/jpeg;base64,${result.heatmapBase64}`} 
-                    alt="AI Detection Heatmap" 
-                    className="w-full h-auto rounded-lg border border-red-200 shadow-md" 
-                />
+              <img
+                src={`data:image/jpeg;base64,${result.heatmapBase64}`}
+                alt="AI Detection Heatmap"
+                className="w-full h-auto rounded-lg border border-red-200 shadow-md"
+              />
             ) : isLoading ? (
-                <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 text-sm animate-pulse text-center p-4">
-                    <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    Generating heatmap...
-                </div>
+              <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 text-sm animate-pulse text-center p-4">
+                <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Generating heatmap...
+              </div>
             ) : !result ? (
-                <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                    Awaiting analysis
-                </div>
+              <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                Awaiting analysis
+              </div>
             ) : !requestHeatmap ? (
-                <div className="w-full aspect-square bg-yellow-50 border border-yellow-200 rounded-lg flex flex-col items-center justify-center text-yellow-700 text-sm text-center p-4">
-                    <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    Heatmap disabled in configuration.
-                </div>
+              <div className="w-full aspect-square bg-yellow-50 border border-yellow-200 rounded-lg flex flex-col items-center justify-center text-yellow-700 text-sm text-center p-4">
+                <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Heatmap disabled in configuration.
+              </div>
             ) : (
-                 <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                    Not available
-                </div>
+              <div className="w-full aspect-square bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                Not available
+              </div>
             )}
           </div>
 
