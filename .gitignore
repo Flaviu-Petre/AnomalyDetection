@@ -409,4 +409,6 @@ ModelWeights/
 *.onnx
 *.onnx.data
 
+classes.json
+
 AnomalyDetectionBackend/AnomalyDetection.Api/.env
