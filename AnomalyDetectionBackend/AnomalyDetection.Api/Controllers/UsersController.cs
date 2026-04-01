@@ -1,7 +1,9 @@
-﻿using AnomalyDetection.Api.Repositories;
-using AnomalyDetection.Api.Models.DTOs;
+﻿using AnomalyDetection.Api.Models.DTOs;
+using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
@@ -11,13 +13,13 @@ namespace AnomalyDetection.Api.Controllers
     public class UsersController : ControllerBase
     {
         #region Fields
-        private readonly UserRepository _userRepo;
+        private readonly UserService _userService;
         #endregion
 
         #region Constructor
-        public UsersController(UserRepository userRepo)
+        public UsersController(UserService userService)
         {
-            _userRepo = userRepo;
+            _userService = userService;
         }
         #endregion
 
@@ -27,9 +29,8 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                var users = _userRepo.GetAllUsers();
+                var users = _userService.GetAllUsers();
                 return Ok(users);
-
             }
             catch (Exception ex)
             {
@@ -42,13 +43,18 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                if (request.Role != "Admin" && request.Role != "User")
-                {
-                    return BadRequest("Invalid role. Must be 'Admin' or 'User'.");
-                }
+                var currentUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                _userService.UpdateUserRole(currentUserIdStr, id, request.Role);
 
-                _userRepo.UpdateUserRole(id, request.Role);
                 return Ok(new { Message = $"User {id} is now an {request.Role}." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
