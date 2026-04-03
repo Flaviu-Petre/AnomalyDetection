@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
 interface User {
   id: number;
@@ -13,6 +14,7 @@ export default function UsersManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   // --- 1. FETCH ALL USERS ---
@@ -41,14 +43,25 @@ export default function UsersManagementPage() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        const userId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+        setCurrentUserId(userId);
+      } catch (e) {
+        console.error("Failed to decode token", e);
+      }
+    }
+
     fetchUsers();
   }, []);
 
   // --- 2. UPDATE USER ROLE ---
   const handleRoleChange = async (userId: number, newRole: string) => {
+    setUpdatingId(userId);
     setErrorMessage("");
     setSuccessMessage("");
-    setUpdatingId(userId);
 
     try {
       const token = localStorage.getItem("token");
@@ -62,90 +75,91 @@ export default function UsersManagementPage() {
       });
 
       if (response.ok) {
-        setSuccessMessage(`Successfully updated permissions to ${newRole}!`);
-        fetchUsers();
+        setSuccessMessage(`Successfully updated user to ${newRole}.`);
+        fetchUsers(); 
       } else {
         const errorText = await response.text();
-        setErrorMessage(`Failed to update role: ${errorText}`);
+        setErrorMessage(errorText || "Failed to update role.");
+        fetchUsers();
       }
     } catch (error) {
-      setErrorMessage("Network error while trying to update user role.");
+      setErrorMessage("Could not connect to the server to update role.");
+      fetchUsers();
     } finally {
       setUpdatingId(null);
     }
   };
 
+  // --- UI RENDER ---
   return (
-    <div className="max-w-300 mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6">
       
       {/* Page header */}
-      <div className="mb-8 flex justify-between items-end">
+      <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">User management</h2>
-          <p className="text-gray-600 mt-1">Orchestrate system access and user roles.</p>
+          <p className="text-sm text-gray-500 mt-1">Orchestrate system access and user roles.</p>
         </div>
         <button 
           onClick={fetchUsers}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+          disabled={isLoading}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors flex items-center gap-2"
         >
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          Refresh list
+          {isLoading ? "Refreshing..." : "Refresh list"}
         </button>
       </div>
 
-      {/* Alert messages */}
+      {/* Messages */}
       {errorMessage && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm font-medium">
-          {errorMessage}
+        <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-md shadow-sm">
+          <p className="font-medium">Error</p>
+          <p className="text-sm">{errorMessage}</p>
         </div>
       )}
+
       {successMessage && (
-        <div className="p-4 bg-green-50 text-green-700 rounded-md border border-green-200 text-sm font-medium">
-          {successMessage}
+        <div className="p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-md shadow-sm">
+          <p className="font-medium">Success</p>
+          <p className="text-sm">{successMessage}</p>
         </div>
       )}
 
       {/* Users table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-              <svg className="animate-spin h-8 w-8 mb-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <p>Loading personnel data...</p>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="py-20 text-center text-gray-500">
-              No users found in the database.
-            </div>
-          ) : (
+        {isLoading && users.length === 0 ? (
+          <div className="p-12 text-center text-gray-500 flex flex-col items-center">
+             <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            Loading users...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
-                  <th className="p-4 font-semibold w-24">User ID</th>
-                  <th className="p-4 font-semibold">Username</th>
-                  <th className="p-4 font-semibold">Current status</th>
-                  <th className="p-4 font-semibold text-right">Manage role</th>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Username</th>
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Role</th>
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Change Role</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
+              <tbody className="divide-y divide-gray-100">
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 text-gray-500 font-mono">
-                      #{user.id}
-                    </td>
-                    <td className="p-4">
-                      <span className="font-medium text-gray-900">@{user.username}</span>
-                    </td>
-                    <td className="p-4">
-                      {user.role === "Admin" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                          Administrator
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
-                          Standard user
+                    <td className="p-4 text-sm text-gray-500">#{user.id}</td>
+                    <td className="p-4 text-sm font-medium text-gray-900 flex items-center gap-2">
+                      {user.username}
+                      {user.id.toString() === currentUserId && (
+                        <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                          (You)
                         </span>
                       )}
+                    </td>
+                    <td className="p-4 text-sm">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                        user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
+                      }`}>
+                        {user.role}
+                      </span>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end items-center gap-3">
@@ -155,8 +169,12 @@ export default function UsersManagementPage() {
                         <select
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                          disabled={updatingId === user.id}
-                          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm disabled:bg-gray-100 cursor-pointer"
+                          disabled={updatingId === user.id || user.id.toString() === currentUserId}
+                          className={`rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-colors ${
+                            user.id.toString() === currentUserId 
+                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                              : 'bg-white text-gray-900 cursor-pointer'
+                          }`}
                         >
                           <option value="Admin">Admin</option>
                           <option value="User">User</option>
@@ -165,11 +183,20 @@ export default function UsersManagementPage() {
                     </td>
                   </tr>
                 ))}
+                
+                {users.length === 0 && !isLoading && (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-gray-500">
+                      No users found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
     </div>
   );
 }
