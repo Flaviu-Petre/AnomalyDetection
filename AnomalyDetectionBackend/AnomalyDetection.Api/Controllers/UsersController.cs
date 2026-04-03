@@ -43,7 +43,12 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                var currentUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUserIdStr = User.FindFirstValue("id");
+                if (string.IsNullOrEmpty(currentUserIdStr))
+                {
+                    return Unauthorized("Security Error: Could not identify the user making this request.");
+                }
+
                 _userService.UpdateUserRole(currentUserIdStr, id, request.Role);
 
                 return Ok(new { Message = $"User {id} is now an {request.Role}." });
