@@ -47,8 +47,9 @@ export default function UsersManagementPage() {
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
-        const userId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-        setCurrentUserId(userId);
+        const userId = decoded.id;
+        
+        setCurrentUserId(userId ? userId.toString() : null);
       } catch (e) {
         console.error("Failed to decode token", e);
       }
