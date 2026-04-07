@@ -45,6 +45,11 @@ namespace AnomalyDetection.Api.Controllers
                 string predictedCategory = await AnomalyDetectionService.ClassifyImageCategoryAsync(stream);
                 string normalizedCategory = predictedCategory.ToLower().Trim();
 
+                if (normalizedCategory == "unknown")
+                {
+                    return BadRequest("Image not recognized. Please upload a valid factory part.");
+                }
+
                 bool applyMask = !_textureClasses.Contains(normalizedCategory);
 
                 var (mlService, threshold) = _modelManager.GetModelForCategory(normalizedCategory);
