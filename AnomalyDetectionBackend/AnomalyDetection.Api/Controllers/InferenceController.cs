@@ -14,6 +14,7 @@ namespace AnomalyDetection.Api.Controllers
         #region Fields
         private readonly ModelManagerService _modelManager;
         private readonly StatisticsService _statisticsService;
+        private readonly ILogger<InferenceController> _logger;
 
         private readonly string[] _textureClasses =
         [
@@ -23,10 +24,11 @@ namespace AnomalyDetection.Api.Controllers
         #endregion
 
         #region Constructor
-        public InferenceController(ModelManagerService modelManager, StatisticsService statisticsService)
+        public InferenceController(ModelManagerService modelManager, StatisticsService statisticsService, ILogger<InferenceController> logger)
         {
             _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
             _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
         #endregion
 
@@ -36,7 +38,10 @@ namespace AnomalyDetection.Api.Controllers
         public async Task<IActionResult> DetectAnomaly(IFormFile image, [FromForm] bool returnHeatmap = false)
         {
             if (image == null || image.Length == 0)
+            {
+                _logger.LogWarning("[INFERENCE] Request rejected: No image file was uploaded.");
                 return BadRequest("No image file was uploaded.");
+            }
 
             try
             {
@@ -46,9 +51,12 @@ namespace AnomalyDetection.Api.Controllers
                 string normalizedCategory = classificationResult.Category.ToLower().Trim();
                 float confidence = classificationResult.Confidence;
 
-                if (normalizedCategory == "unknown" || confidence < 0.98f)
+                _logger.LogInformation("[AI ROUTER] Predicted: {Category} with {Confidence}% confidence", normalizedCategory, confidence * 100);
+
+                if (normalizedCategory == "unknown" || confidence < 0.93f)
                 {
-                    return BadRequest("Image not recognized. Please upload a valid factory part.");
+                    _logger.LogWarning("[AI ROUTER REJECTED] Image failed threshold. Category: {Category}, Confidence: {Confidence}%", normalizedCategory, confidence * 100);
+                    return BadRequest($"Image not recognized. Please upload a valid factory part. (AI Confidence was only {confidence * 100:F1}%)");
                 }
 
                 bool applyMask = !_textureClasses.Contains(normalizedCategory);
@@ -76,15 +84,20 @@ namespace AnomalyDetection.Api.Controllers
                     HeatmapBase64 = result.HeatmapBase64
                 };
 
+                _logger.LogInformation("[INFERENCE SUCCESS] Category: {Category} | Anomaly Detected: {IsAnomaly} | Score: {Score}",
+                    normalizedCategory, result.IsAnomaly, result.Score);
+
                 return Ok(response);
             }
             catch (FileNotFoundException ex)
             {
-                return NotFound(ex.Message);
+                _logger.LogWarning(ex, "[INFERENCE ERROR] Model files not found for category.");
+                return NotFound("The AI model for this category is currently unavailable.");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred during inference: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred during Padim inference.");
+                return StatusCode(500, "An unexpected internal server error occurred while processing the image.");
             }
         }
         #endregion

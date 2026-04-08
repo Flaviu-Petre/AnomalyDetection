@@ -13,12 +13,14 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly StatisticsService _statisticsService;
+        private readonly ILogger<StatisticsController> _logger;
         #endregion
 
         #region Constructor
-        public StatisticsController(StatisticsService statisticsService)
+        public StatisticsController(StatisticsService statisticsService, ILogger<StatisticsController> logger)
         {
             _statisticsService = statisticsService;
+            _logger = logger;
         }
         #endregion
 
@@ -33,11 +35,14 @@ namespace AnomalyDetection.Api.Controllers
 
                 var stats = _statisticsService.GetWeeklyStatistics(username, role);
 
+                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched dashboard stats.", username, role);
+
                 return Ok(stats);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while fetching statistics: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] Database query failed while fetching dashboard statistics.");
+                return StatusCode(500, "An unexpected internal server error occurred while fetching your dashboard statistics.");
             }
         }
 
@@ -51,11 +56,14 @@ namespace AnomalyDetection.Api.Controllers
 
                 var history = _statisticsService.GetInferenceHistory(username, role);
 
+                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history.", username, role);
+
                 return Ok(history);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while fetching history: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] Database query failed while fetching inference history.");
+                return StatusCode(500, "An unexpected internal server error occurred while fetching your history.");
             }
         }
         #endregion

@@ -96,6 +96,11 @@ namespace AnomalyDetection.Api.Services
         {
             string normalizedCategory = category.ToLower().Trim();
 
+            if (normalizedCategory.Contains("..") || normalizedCategory.Contains("/") || normalizedCategory.Contains("\\"))
+            {
+                throw new ArgumentException("Security Policy: Invalid category name. Path traversal characters are not allowed.");
+            }
+
             string categoryPath = Path.Combine(_modelStorageDirectory, normalizedCategory);
             if (!Directory.Exists(categoryPath))
             {

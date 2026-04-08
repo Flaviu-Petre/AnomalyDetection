@@ -10,12 +10,14 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly FeedbackService _feedbackService;
+        private readonly ILogger<FeedbackController> _logger;
         #endregion
 
         #region Constructor
-        public FeedbackController(FeedbackService feedbackService)
+        public FeedbackController(FeedbackService feedbackService, ILogger<FeedbackController> logger)
         {
             _feedbackService = feedbackService;
+            _logger = logger;
         }
         #endregion
 
@@ -26,16 +28,26 @@ namespace AnomalyDetection.Api.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(request.Category))
+                {
+                    _logger.LogWarning("[FEEDBACK] Submission failed: Category was missing.");
                     return BadRequest("Category is required.");
+                }
 
                 if (request.Image == null || request.Image.Length == 0)
+                {
+                    _logger.LogWarning("[FEEDBACK] Submission failed for category '{Category}': Image file was missing.", request.Category);
                     return BadRequest("Image file is required.");
+                }
 
                 string savedPath = await _feedbackService.SaveFeedbackImageAsync(
                     request.Category,
                     request.IsActuallyAnomaly,
                     request.Image
                 );
+
+                _logger.LogInformation("[FEEDBACK] Successfully saved user feedback for category '{Category}'. Marked as Anomaly: {IsAnomaly}",
+                    request.Category,
+                    request.IsActuallyAnomaly);
 
                 return Ok(new
                 {

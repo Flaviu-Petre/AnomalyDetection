@@ -14,12 +14,14 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly UserService _userService;
+        private readonly ILogger<StatisticsController> _logger;
         #endregion
 
         #region Constructor
-        public UsersController(UserService userService)
+        public UsersController(UserService userService, ILogger<StatisticsController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
         #endregion
 
@@ -30,11 +32,13 @@ namespace AnomalyDetection.Api.Controllers
             try
             {
                 var users = _userService.GetAllUsers();
+
                 return Ok(users);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while fetching users: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to fetch the list of users from the database.");
+                return StatusCode(500, "An unexpected internal server error occurred while fetching users.");
             }
         }
 
@@ -46,24 +50,31 @@ namespace AnomalyDetection.Api.Controllers
                 var currentUserIdStr = User.FindFirstValue("id");
                 if (string.IsNullOrEmpty(currentUserIdStr))
                 {
+                    _logger.LogWarning("[SECURITY] Role update blocked: Could not identify the user making the request.");
                     return Unauthorized("Security Error: Could not identify the user making this request.");
                 }
 
                 _userService.UpdateUserRole(currentUserIdStr, id, request.Role);
 
+                _logger.LogInformation("[SECURITY AUDIT] Admin ID '{AdminId}' successfully changed User ID '{TargetId}' to role '{NewRole}'.",
+                    currentUserIdStr, id, request.Role);
+
                 return Ok(new { Message = $"User {id} is now an {request.Role}." });
             }
             catch (InvalidOperationException ex)
             {
+                _logger.LogWarning(ex, "[SECURITY] Role update blocked: Invalid operation by Admin ID '{AdminId}'.", User.FindFirstValue("id"));
                 return BadRequest(ex.Message);
             }
             catch (ArgumentException ex)
             {
+                _logger.LogWarning(ex, "[SECURITY] Role update blocked: Invalid argument provided.");
                 return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while updating user role: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred while updating the role for User ID '{TargetId}'.", id);
+                return StatusCode(500, "An unexpected internal server error occurred while updating the user's role.");
             }
         }
         #endregion

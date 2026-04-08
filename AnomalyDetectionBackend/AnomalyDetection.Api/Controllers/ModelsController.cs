@@ -12,12 +12,14 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly ModelManagerService _modelManager;
+        private readonly ILogger<ModelsController> _logger;
         #endregion
 
         #region Constructor
-        public ModelsController(ModelManagerService modelManager)
+        public ModelsController(ModelManagerService modelManager, ILogger<ModelsController> logger)
         {
             _modelManager = modelManager;
+            _logger = logger;
         }
         #endregion
 
@@ -39,21 +41,33 @@ namespace AnomalyDetection.Api.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(request.Category))
+                {
+                    _logger.LogWarning("[MODELS] Upload failed: Category is missing.");
                     return BadRequest("Category is required.");
+                }
 
                 if (request.OnnxModel == null || !request.OnnxModel.FileName.EndsWith(".onnx"))
+                {
+                    _logger.LogWarning("[MODELS] Upload failed for category '{Category}': Invalid ONNX file.", request.Category);
                     return BadRequest("A valid .onnx model file is required.");
+                }
 
                 if (request.JsonMetadata == null || !request.JsonMetadata.FileName.EndsWith(".json"))
+                {
+                    _logger.LogWarning("[MODELS] Upload failed for category '{Category}': Invalid JSON file.", request.Category);
                     return BadRequest("A valid .json metadata file is required.");
+                }
 
                 await _modelManager.UploadNewModelAsync(request.Category, request.OnnxModel, request.OnnxData, request.JsonMetadata);
+
+                _logger.LogInformation("[MODELS] Successfully uploaded and registered new model for category: '{Category}'", request.Category);
 
                 return Ok(new { Message = $"Successfully uploaded and registered the new model for: {request.Category}" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while saving model: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to upload model for category '{Category}'.", request.Category);
+                return StatusCode(500, new { Error = "An unexpected internal server error occurred while saving the model." });
             }
         }
 
@@ -64,23 +78,31 @@ namespace AnomalyDetection.Api.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(category))
+                {
+                    _logger.LogWarning("[MODELS] Delete failed: Category is missing.");
                     return BadRequest("Category is required.");
+                }
 
                 _modelManager.DeleteModel(category);
+
+                _logger.LogInformation("[MODELS] Successfully deleted model and cleared memory for category: '{Category}'", category);
 
                 return Ok(new { Message = $"Successfully deleted the model and cleared memory for category: {category}" });
             }
             catch (DirectoryNotFoundException ex)
-            { 
-                return NotFound(new { Error = ex.Message });
+            {
+                _logger.LogWarning(ex, "[MODELS] Delete failed: Directory not found for category '{Category}'.", category);
+                return NotFound(new { Error = "The requested model category could not be found." });
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { Error = ex.Message });
+                _logger.LogWarning(ex, "[MODELS] Delete failed: Invalid argument for category '{Category}'.", category);
+                return BadRequest(new { Error = "Invalid category name provided." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Error = $"Internal server error while deleting model: {ex.Message}" });
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to delete model for category '{Category}'.", category);
+                return StatusCode(500, new { Error = "An unexpected internal server error occurred while deleting the model." });
             }
         }
 
