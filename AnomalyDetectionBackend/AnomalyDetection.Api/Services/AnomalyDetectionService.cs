@@ -231,7 +231,7 @@ namespace AnomalyDetection.Api.Services
 
         }
 
-        public static async Task<string> ClassifyImageCategoryAsync(Stream imageStream)
+        public static async Task<(string Category, float Confidence)> ClassifyImageCategoryAsync(Stream imageStream)
         {
             imageStream.Position = 0;
 
@@ -270,15 +270,24 @@ namespace AnomalyDetection.Api.Services
             using var session = new InferenceSession("RouterModel/router.onnx");
             using var results = session.Run(inputs);
 
-            var output = results.First().AsEnumerable<float>().ToArray();
+            var logits = results.First().AsEnumerable<float>().ToArray();
+
+            float maxLogit = logits.Max();
+            float sumExp = 0f;
+            for (int i = 0; i < logits.Length; i++)
+            {
+                sumExp += (float)Math.Exp(logits[i] - maxLogit);
+            }
 
             int maxIndex = 0;
-            float maxScore = output[0];
-            for (int i = 1; i < output.Length; i++)
+            float maxConfidence = 0f;
+
+            for (int i = 0; i < logits.Length; i++)
             {
-                if (output[i] > maxScore)
+                float probability = (float)Math.Exp(logits[i] - maxLogit) / sumExp;
+                if (probability > maxConfidence)
                 {
-                    maxScore = output[i];
+                    maxConfidence = probability;
                     maxIndex = i;
                 }
             }
@@ -291,7 +300,7 @@ namespace AnomalyDetection.Api.Services
 
             imageStream.Position = 0;
 
-            return predictedCategory;
+            return (predictedCategory, maxConfidence);
         }
         #endregion
     }
