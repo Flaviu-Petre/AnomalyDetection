@@ -42,10 +42,11 @@ namespace AnomalyDetection.Api.Controllers
             {
                 using var stream = image.OpenReadStream();
 
-                string predictedCategory = await AnomalyDetectionService.ClassifyImageCategoryAsync(stream);
-                string normalizedCategory = predictedCategory.ToLower().Trim();
+                var classificationResult = await AnomalyDetectionService.ClassifyImageCategoryAsync(stream);
+                string normalizedCategory = classificationResult.Category.ToLower().Trim();
+                float confidence = classificationResult.Confidence;
 
-                if (normalizedCategory == "unknown")
+                if (normalizedCategory == "unknown" || confidence < 0.98f)
                 {
                     return BadRequest("Image not recognized. Please upload a valid factory part.");
                 }
