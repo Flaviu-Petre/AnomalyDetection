@@ -4,6 +4,14 @@
     {
         #region Fields
         private readonly string _baseFeedbackDirectory = "FeedbackData";
+        private readonly ILogger<FeedbackService> _logger;
+        #endregion
+
+        #region Constructor
+        public FeedbackService(ILogger<FeedbackService> logger)
+        {
+            _logger = logger;
+        }
         #endregion
 
         #region Methods
@@ -18,6 +26,7 @@
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
+                _logger.LogInformation("[FILE SYSTEM] Created new feedback directory at: {DirectoryPath}", directoryPath);
             }
 
             string extension = Path.GetExtension(image.FileName);
@@ -30,6 +39,8 @@
             {
                 await image.CopyToAsync(stream);
             }
+
+            _logger.LogInformation("[FILE SYSTEM] Saved user feedback image: {FilePath}", fullFilePath);
 
             return fullFilePath;
         }
