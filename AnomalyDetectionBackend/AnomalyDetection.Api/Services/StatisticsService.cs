@@ -68,9 +68,9 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
-        public List<InferenceRecord> GetInferenceHistory(int userId, string role)
+        public List<InferenceHistoryDto> GetInferenceHistory(int userId, string role)
         {
-            var records = _statisticsRepo.GetRecordsSince(DateTime.UtcNow.AddDays(-30));
+            var records = _statisticsRepo.GetHistoryWithUsernames(DateTime.UtcNow.AddDays(-30));
 
             if (role != "Admin")
             {

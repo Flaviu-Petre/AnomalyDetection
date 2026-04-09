@@ -1,4 +1,5 @@
 ﻿using AnomalyDetection.Api.Data;
+using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Models.Entities;
 
 namespace AnomalyDetection.Api.Repositories
@@ -28,6 +29,26 @@ namespace AnomalyDetection.Api.Repositories
             return _db.InferenceRecords
                       .Where(r => r.Timestamp >= startDate)
                       .ToList();
+        }
+
+        public List<InferenceHistoryDto> GetHistoryWithUsernames(DateTime startDate)
+        {
+            var query = from record in _db.InferenceRecords
+                        join user in _db.Users on record.UserId equals user.Id
+                        where record.Timestamp >= startDate
+                        select new InferenceHistoryDto
+                        {
+                            Id = record.Id,
+                            Timestamp = record.Timestamp,
+                            Category = record.Category,
+                            IsAnomaly = record.IsAnomaly,
+                            Score = record.Score,
+                            ThresholdUsed = record.ThresholdUsed,
+                            UserId = record.UserId,
+                            Username = user.Username
+                        };
+
+            return query.ToList();
         }
         #endregion
     }
