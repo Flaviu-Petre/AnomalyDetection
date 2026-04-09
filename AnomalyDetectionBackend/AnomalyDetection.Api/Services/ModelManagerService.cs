@@ -12,12 +12,14 @@ namespace AnomalyDetection.Api.Services
         private readonly ConcurrentDictionary<string, ModelMetadata> _metadataCache = new();
         private readonly string _modelStorageDirectory = "ModelWeights";
         private readonly ILogger<ModelManagerService> _logger;
+        private readonly ILogger<AnomalyDetectionService> _anomalyLogger;
         #endregion
 
         #region Constructor
-        public ModelManagerService(ILogger<ModelManagerService> logger)
+        public ModelManagerService(ILogger<ModelManagerService> logger, ILogger<AnomalyDetectionService> anomalyLogger) 
         {
             _logger = logger;
+            _anomalyLogger = anomalyLogger;
         }
         #endregion
 
@@ -43,7 +45,7 @@ namespace AnomalyDetection.Api.Services
             var metadata = JsonSerializer.Deserialize<ModelMetadata>(json)
                 ?? throw new Exception("Failed to parse metadata.json");
 
-            var newService = new AnomalyDetectionService(modelPath);
+            var newService = new AnomalyDetectionService(modelPath, _anomalyLogger);
 
             _activeServices.TryAdd(category, newService);
             _metadataCache.TryAdd(category, metadata);

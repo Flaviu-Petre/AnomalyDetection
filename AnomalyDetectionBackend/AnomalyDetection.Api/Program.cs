@@ -7,10 +7,20 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
+using Serilog;
 
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, configuration) =>
+{
+    configuration
+        .MinimumLevel.Information() 
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning) 
+        .WriteTo.Console() 
+        .WriteTo.File("Logs/anomaly-server-log-.txt", rollingInterval: RollingInterval.Day); 
+});
 
 builder.Services.AddControllers();
 
