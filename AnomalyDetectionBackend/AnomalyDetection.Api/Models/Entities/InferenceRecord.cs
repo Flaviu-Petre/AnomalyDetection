@@ -8,6 +8,6 @@
         public bool IsAnomaly { get; set; }       
         public float Score { get; set; }     
         public float ThresholdUsed { get; set; }
-        public string Username { get; set; } = string.Empty;
+        public int UserId { get; set; }
     }
 }

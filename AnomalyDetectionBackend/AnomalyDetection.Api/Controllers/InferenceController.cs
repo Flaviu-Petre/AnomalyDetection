@@ -65,14 +65,19 @@ namespace AnomalyDetection.Api.Controllers
 
                 var result = mlService.PredictAnomalyScore(stream, threshold, applyMask, returnHeatmap);
 
-                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+                int userId = 0;
+                var userIdStr = User.FindFirstValue("id");
+                if (!string.IsNullOrEmpty(userIdStr))
+                {
+                    int.TryParse(userIdStr, out userId);
+                }
 
                 _statisticsService.SaveInferenceResult(
                     normalizedCategory,
                     result.IsAnomaly,
                     result.Score,
                     result.UsedThreshold,
-                    username
+                    userId
                 );
 
                 var response = new AnomalyResponse

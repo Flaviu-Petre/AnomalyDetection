@@ -19,7 +19,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Methods
-        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold, string username)
+        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold, int userId)
         {
             var record = new InferenceRecord
             {
@@ -28,13 +28,13 @@ namespace AnomalyDetection.Api.Services
                 Score = score,
                 ThresholdUsed = threshold,
                 Timestamp = DateTime.UtcNow,
-                Username = username
+                UserId = userId
             };
 
             _statisticsRepo.AddInferenceRecord(record);
         }
 
-        public DashboardStatsResponse GetWeeklyStatistics(string username, string role)
+        public DashboardStatsResponse GetWeeklyStatistics(int userId, string role)
         {
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 
@@ -42,7 +42,7 @@ namespace AnomalyDetection.Api.Services
 
             if (role != "Admin")
             {
-                records = records.Where(r => r.Username == username).ToList();
+                records = records.Where(r => r.UserId == userId).ToList();
             }
 
             int totalInferences = records.Count;
@@ -68,13 +68,13 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
-        public List<InferenceRecord> GetInferenceHistory(string username, string role)
+        public List<InferenceRecord> GetInferenceHistory(int userId, string role)
         {
             var records = _statisticsRepo.GetRecordsSince(DateTime.UtcNow.AddDays(-30));
 
             if (role != "Admin")
             {
-                records = records.Where(r => r.Username == username).ToList();
+                records = records.Where(r => r.UserId == userId).ToList();
             }
 
             return records.OrderByDescending(r => r.Timestamp).ToList();

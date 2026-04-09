@@ -30,12 +30,15 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
                 string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
 
-                var stats = _statisticsService.GetWeeklyStatistics(username, role);
+                int userId = 0;
+                var userIdStr = User.FindFirstValue("id");
+                if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
 
-                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched dashboard stats.", username, role);
+                var stats = _statisticsService.GetWeeklyStatistics(userId, role);
+
+                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched dashboard stats.", userId, role);
 
                 return Ok(stats);
             }
@@ -51,13 +54,16 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                string username = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
                 string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
 
-                var history = _statisticsService.GetInferenceHistory(username, role);
+                int userId = 0;
+                var userIdStr = User.FindFirstValue("id");
+                if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
 
-                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history.", username, role);
+                var history = _statisticsService.GetInferenceHistory(userId, role);
 
+                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history.", userId, role);
+  
                 return Ok(history);
             }
             catch (Exception ex)
