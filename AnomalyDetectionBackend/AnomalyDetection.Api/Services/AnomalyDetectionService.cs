@@ -14,21 +14,27 @@ namespace AnomalyDetection.Api.Services
     {
         #region Fields
         private readonly InferenceSession _padimSession;
+        private readonly ILogger<AnomalyDetectionService> _logger;
         #endregion
 
         #region Constructor
-        public AnomalyDetectionService(string padimModelPath)
+        public AnomalyDetectionService(string padimModelPath, ILogger<AnomalyDetectionService> logger)
         {
+            _logger = logger;
             var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
             options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
 
+            _logger.LogInformation("[ONNX] Loading Padim model into memory from: {Path}", padimModelPath);
             _padimSession = new InferenceSession(padimModelPath, options);
+            
         }
         #endregion
 
         #region Public Methods
         public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool applyMask = false, bool returnHeatmap = false)
         {
+            _logger.LogDebug("[ONNX] Starting Padim inference execution...");
+
             using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(imageStream);
 
             image.Mutate(x => x

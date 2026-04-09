@@ -14,12 +14,14 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly AuthService _authService;
+        private readonly ILogger<AuthController> _logger;
         #endregion
 
         #region Constructor
-        public AuthController(AuthService authService)
+        public AuthController(AuthService authService, ILogger<AuthController> logger)
         {
             _authService = authService;
+            _logger = logger;
         }
         #endregion
 
@@ -29,10 +31,12 @@ namespace AnomalyDetection.Api.Controllers
         {
             if (_authService.IsUsernameTaken(request.Username))
             {
+                _logger.LogWarning("[AUTH] Failed registration attempt. Username '{Username}' is already taken.", request.Username);
                 return BadRequest("Username already exists.");
             }
             _authService.RegisterUser(request.Username, request.Password);
 
+            _logger.LogInformation("[AUTH] New user registered successfully: '{Username}'", request.Username);
             return Ok("User registered successfully!");
         }
 
@@ -43,6 +47,7 @@ namespace AnomalyDetection.Api.Controllers
 
             if (user == null)
             {
+                _logger.LogWarning("[AUTH] Failed login attempt for username: '{Username}'", request.Username);
                 return Unauthorized("Invalid username or password.");
             }
 
@@ -69,6 +74,8 @@ namespace AnomalyDetection.Api.Controllers
                 expires: DateTime.UtcNow.AddHours(8),
                 signingCredentials: creds
             );
+
+            _logger.LogInformation("[AUTH] User logged in successfully: '{Username}' (Role: {Role})", user.Username, user.Role);
 
             return Ok(new
             {
