@@ -14,8 +14,11 @@ export default function UsersManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // --- 1. FETCH ALL USERS ---
   const fetchUsers = async () => {
@@ -91,6 +94,39 @@ export default function UsersManagementPage() {
     }
   };
 
+  // --- 3. DELETE USER ---
+  const handleDeleteUser = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) {
+      return;
+    }
+
+    setDeletingId(id);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`https://localhost:7136/api/v1/Users/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setSuccessMessage("User deleted successfully.");
+        setUsers(users.filter(user => user.id !== id));
+      } else {
+        const errorData = await response.text(); 
+        setErrorMessage(errorData || "Failed to delete user.");
+      }
+    } catch (error) {
+      setErrorMessage("Network error while trying to delete user.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // --- UI RENDER ---
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -139,8 +175,8 @@ export default function UsersManagementPage() {
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Username</th>
-                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Role</th>
-                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Change Role</th>
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current role</th>
+                  <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -167,6 +203,8 @@ export default function UsersManagementPage() {
                         {updatingId === user.id && (
                           <svg className="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         )}
+                        
+                        {/* Role dropdown */}
                         <select
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
@@ -180,7 +218,20 @@ export default function UsersManagementPage() {
                           <option value="Admin">Admin</option>
                           <option value="User">User</option>
                         </select>
+                        
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          disabled={deletingId === user.id || user.id.toString() === currentUserId}
+                          className={`text-sm font-medium px-2 py-1.5 rounded transition-colors ${
+                            user.id.toString() === currentUserId 
+                              ? 'text-gray-400 cursor-not-allowed' 
+                              : 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                          }`}
+                        >
+                          {deletingId === user.id ? "Deleting..." : "Delete"}
+                        </button>
                       </div>
+
                     </td>
                   </tr>
                 ))}
