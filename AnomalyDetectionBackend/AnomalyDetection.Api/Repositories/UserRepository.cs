@@ -49,6 +49,20 @@ namespace AnomalyDetection.Api.Repositories
                 _db.SaveChanges();
             }
         }
+
+        public void DeleteUser(int userId)
+        {
+            var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+            if (user != null)
+            {
+                _db.Users.Remove(user);
+                _db.SaveChanges();
+            }
+            else
+            {
+                throw new KeyNotFoundException("User not found.");
+            }
+        }
         #endregion
     }
 }

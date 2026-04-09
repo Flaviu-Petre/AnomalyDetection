@@ -77,6 +77,42 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, "An unexpected internal server error occurred while updating the user's role.");
             }
         }
+
+        [HttpDelete("{id}")]
+        public IActionResult DeleteUser(int id)
+        {
+            try
+            {
+                var currentUserIdStr = User.FindFirstValue("id");
+                if (string.IsNullOrEmpty(currentUserIdStr))
+                {
+                    _logger.LogWarning("[SECURITY] User deletion blocked: Could not identify the user making the request.");
+                    return Unauthorized("Security Error: Could not identify the user making this request.");
+                }
+
+                _userService.DeleteUser(currentUserIdStr, id);
+
+                _logger.LogInformation("[SECURITY AUDIT] Admin ID '{AdminId}' successfully deleted User ID '{TargetId}'.",
+                    currentUserIdStr, id);
+
+                return Ok(new { Message = $"Successfully deleted user {id}." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "[SECURITY] User deletion blocked: Admin ID '{AdminId}' attempted to delete themselves.", User.FindFirstValue("id"));
+                return BadRequest(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning("[USERS] Deletion failed: User ID '{TargetId}' does not exist.", id);
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred while deleting User ID '{TargetId}'.", id);
+                return StatusCode(500, "An unexpected internal server error occurred while deleting the user.");
+            }
+        }
         #endregion
     }
 }
