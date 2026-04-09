@@ -5,13 +5,18 @@ namespace AnomalyDetection.Api.Services
 {
     public class UserService
     {
+        #region Fields
         private readonly UserRepository _userRepo;
+        #endregion
 
+        #region Constructor
         public UserService(UserRepository userRepo)
         {
             _userRepo = userRepo;
         }
+        #endregion
 
+        #region Methods
         public object GetAllUsers()
         {
             return _userRepo.GetAllUsers();
@@ -31,5 +36,16 @@ namespace AnomalyDetection.Api.Services
 
             _userRepo.UpdateUserRole(targetUserId, newRole);
         }
+
+        public void DeleteUser(string currentUserId, int targetUserId)
+        {
+            if (currentUserId == targetUserId.ToString())
+            {
+                throw new InvalidOperationException("Security Policy: You cannot delete your own account.");
+            }
+
+            _userRepo.DeleteUser(targetUserId);
+        }
+        #endregion
     }
 }
