@@ -50,7 +50,11 @@ namespace AnomalyDetection.Api.Controllers
         }
 
         [HttpGet("history")]
-        public IActionResult GetHistory()
+        public IActionResult GetHistory(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string sortBy = "timestamp",
+            [FromQuery] bool sortDesc = true)
         {
             try
             {
@@ -60,11 +64,11 @@ namespace AnomalyDetection.Api.Controllers
                 var userIdStr = User.FindFirstValue("id");
                 if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
 
-                var history = _statisticsService.GetInferenceHistory(userId, role);
+                var pagedHistory = _statisticsService.GetInferenceHistory(userId, role, page, pageSize, sortBy, sortDesc);
 
-                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history.", userId, role);
-  
-                return Ok(history);
+                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history page {Page}.", userId, role, page);
+
+                return Ok(pagedHistory);
             }
             catch (Exception ex)
             {
