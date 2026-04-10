@@ -1,4 +1,5 @@
-﻿using AnomalyDetection.Api.Models.Entities;
+﻿using System.ComponentModel.DataAnnotations;
+using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories;
 
 namespace AnomalyDetection.Api.Services
@@ -22,13 +23,25 @@ namespace AnomalyDetection.Api.Services
             return _userRepo.UserExists(username);
         }
 
-        public void RegisterUser(string username, string rawPassword)
+        public void RegisterUser(string username, string rawPassword, string email)
         {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new Exception("Email address is required.");
+            }
+
+            var emailValidator = new EmailAddressAttribute();
+            if (!emailValidator.IsValid(email))
+            {
+                throw new Exception("Invalid email address format.");
+            }
+
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(rawPassword);
 
             var newUser = new User
             {
                 Username = username,
+                Email = email,
                 PasswordHash = hashedPassword,
                 Role = "User"
             };
