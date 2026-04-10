@@ -69,16 +69,11 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
-        public List<InferenceHistoryDto> GetInferenceHistory(int userId, string role)
+        public PagedResult<InferenceHistoryDto> GetInferenceHistory(int userId, string role, int pageNumber, int pageSize, string sortBy, bool sortDescending)
         {
-            var records = _statisticsRepo.GetHistoryWithUsernames(DateTime.UtcNow.AddDays(-30));
-
-            if (role != "Admin")
-            {
-                records = records.Where(r => r.UserId == userId).ToList();
-            }
-
-            return records.OrderByDescending(r => r.Timestamp).ToList();
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            int? filterUserId = role == "Admin" ? null : userId;
+            return _statisticsRepo.GetPagedHistory(thirtyDaysAgo, filterUserId, pageNumber, pageSize, sortBy, sortDescending);
         }
         #endregion
     }
