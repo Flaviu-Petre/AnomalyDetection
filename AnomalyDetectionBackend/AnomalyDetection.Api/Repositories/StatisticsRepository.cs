@@ -45,7 +45,8 @@ namespace AnomalyDetection.Api.Repositories
                             Score = record.Score,
                             ThresholdUsed = record.ThresholdUsed,
                             UserId = record.UserId,
-                            Username = user.Username
+                            Username = user.Username,
+                            ImageName = record.ImageName
                         };
 
             return query.ToList();
