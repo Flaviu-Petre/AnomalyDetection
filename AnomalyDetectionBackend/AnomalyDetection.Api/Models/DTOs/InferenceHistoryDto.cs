@@ -10,5 +10,6 @@
         public float ThresholdUsed { get; set; }
         public int UserId { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string ImageName { get; set; } = string.Empty;
     }
 }

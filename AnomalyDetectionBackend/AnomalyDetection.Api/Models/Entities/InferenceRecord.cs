@@ -9,5 +9,6 @@
         public float Score { get; set; }     
         public float ThresholdUsed { get; set; }
         public int UserId { get; set; }
+        public string ImageName { get; set; } = string.Empty;
     }
 }
