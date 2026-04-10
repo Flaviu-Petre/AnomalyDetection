@@ -17,12 +17,21 @@ export default function HistoryPage() {
   const [records, setRecords] = useState<InferenceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [sortBy, setSortBy] = useState("timestamp");
+  const [sortDesc, setSortDesc] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
+      setIsLoading(true);
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch("https://localhost:7136/api/v1/Statistics/history", {
+        const url = `https://localhost:7136/api/v1/Statistics/history?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}&sortDesc=${sortDesc}`;
+        
+        const response = await fetch(url, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -30,7 +39,9 @@ export default function HistoryPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setRecords(data);
+          setRecords(data.items);
+          setTotalPages(data.totalPages);
+          setTotalCount(data.totalCount);
         } else {
           setErrorMessage("Failed to load inference history.");
         }
@@ -42,13 +53,29 @@ export default function HistoryPage() {
     };
 
     fetchHistory();
-  }, []);
+  }, [page, pageSize, sortBy, sortDesc]);
 
   const formatCategory = (cat: string) => cat.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString(undefined, {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  // --- SORTING HANDLER ---
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDesc(!sortDesc); 
+    } else {
+      setSortBy(column);    
+      setSortDesc(true);    
+    }
+    setPage(1);              
+  };
+
+  const SortArrow = ({ column }: { column: string }) => {
+    if (sortBy !== column) return <span className="opacity-0 group-hover:opacity-30 ml-1">↕</span>;
+    return <span className="ml-1 text-blue-500">{sortDesc ? "↓" : "↑"}</span>;
   };
 
   return (
@@ -75,18 +102,30 @@ export default function HistoryPage() {
             <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-center">
               <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
               <p className="text-lg font-medium text-gray-600">No history found</p>
-              <p className="text-sm mt-1">Inferences run in the last 30 days will appear here.</p>
+              <p className="text-sm mt-1">Adjust your filters or run new inferences to see data here.</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
-                  <th className="p-4 font-semibold">Date & Time</th>
-                  <th className="p-4 font-semibold">Operator</th>
-                  <th className="p-4 font-semibold">Part category</th>
-                  <th className="p-4 font-semibold">Image name</th>
-                  <th className="p-4 font-semibold">AI decision</th>
-                  <th className="p-4 font-semibold text-right">Confidence score</th>
+                <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 select-none">
+                  <th className="p-4 font-semibold cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort("timestamp")}>
+                    Date & Time <SortArrow column="timestamp" />
+                  </th>
+                  <th className="p-4 font-semibold cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort("operator")}>
+                    Operator <SortArrow column="operator" />
+                  </th>
+                  <th className="p-4 font-semibold cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort("category")}>
+                    Part category <SortArrow column="category" />
+                  </th>
+                  <th className="p-4 font-semibold">
+                    Image name
+                  </th>
+                  <th className="p-4 font-semibold cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort("isanomaly")}>
+                    AI decision <SortArrow column="isanomaly" />
+                  </th>
+                  <th className="p-4 font-semibold text-right cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort("score")}>
+                    Confidence score <SortArrow column="score" />
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
@@ -106,7 +145,7 @@ export default function HistoryPage() {
                     <td className="p-4 text-gray-500 text-sm">
                       {record.imageName ? (
                         <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border border-gray-100 w-fit">
-                           <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                           <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                            <span className="truncate max-w-37.5" title={record.imageName}>{record.imageName}</span>
                         </span>
                       ) : (
@@ -136,6 +175,34 @@ export default function HistoryPage() {
             </table>
           )}
         </div>
+
+        {/* --- PAGINATION FOOTER --- */}
+        {!isLoading && records.length > 0 && (
+          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              Showing <span className="font-medium text-gray-900">{((page - 1) * pageSize) + 1}</span> to <span className="font-medium text-gray-900">{Math.min(page * pageSize, totalCount)}</span> of <span className="font-medium text-gray-900">{totalCount}</span> results
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <div className="text-sm text-gray-600 px-2 font-medium">
+                Page {page} of {totalPages}
+              </div>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
