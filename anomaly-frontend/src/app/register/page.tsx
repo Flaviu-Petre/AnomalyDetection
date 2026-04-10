@@ -8,6 +8,7 @@ export default function RegisterPage() {
   const router = useRouter();
   
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   
   const [errorMessage, setErrorMessage] = useState("");
@@ -28,7 +29,8 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           username: username,
-          password: password
+          email: email,
+          password: password,
         }),
       });
 
@@ -86,6 +88,18 @@ export default function RegisterPage() {
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
+
+          <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white text-gray-900"
+                placeholder="operator@factory.com"
+              />
+            </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
