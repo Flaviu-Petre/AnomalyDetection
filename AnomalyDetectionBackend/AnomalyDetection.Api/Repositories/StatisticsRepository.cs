@@ -31,7 +31,7 @@ namespace AnomalyDetection.Api.Repositories
                       .ToList();
         }
 
-        public List<InferenceHistoryDto> GetHistoryWithUsernames(DateTime startDate)
+        public PagedResult<InferenceHistoryDto> GetPagedHistory(DateTime startDate, int? userId, int pageNumber, int pageSize, string sortBy, bool sortDescending)
         {
             var query = from record in _db.InferenceRecords
                         join user in _db.Users on record.UserId equals user.Id
@@ -49,8 +49,34 @@ namespace AnomalyDetection.Api.Repositories
                             ImageName = record.ImageName
                         };
 
-            return query.ToList();
+            if (userId.HasValue)
+            {
+                query = query.Where(r => r.UserId == userId.Value);
+            }
+
+            query = sortBy?.ToLower() switch
+            {
+                "category" => sortDescending ? query.OrderByDescending(r => r.Category) : query.OrderBy(r => r.Category),
+                "score" => sortDescending ? query.OrderByDescending(r => r.Score) : query.OrderBy(r => r.Score),
+                "isanomaly" => sortDescending ? query.OrderByDescending(r => r.IsAnomaly) : query.OrderBy(r => r.IsAnomaly),
+                "operator" => sortDescending ? query.OrderByDescending(r => r.Username) : query.OrderBy(r => r.Username),
+                _ => sortDescending ? query.OrderByDescending(r => r.Timestamp) : query.OrderBy(r => r.Timestamp)
+            };
+
+            int totalCount = query.Count();
+
+            var items = query.Skip((pageNumber - 1) * pageSize)
+                             .Take(pageSize)
+                             .ToList();
+
+            return new PagedResult<InferenceHistoryDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
         #endregion
-    }
+        }
 }
