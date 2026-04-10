@@ -72,12 +72,15 @@ namespace AnomalyDetection.Api.Controllers
                     int.TryParse(userIdStr, out userId);
                 }
 
+                string imageName = image.FileName ?? "Unknown Image";
+
                 _statisticsService.SaveInferenceResult(
                     normalizedCategory,
                     result.IsAnomaly,
                     result.Score,
                     result.UsedThreshold,
-                    userId
+                    userId,
+                    imageName
                 );
 
                 var response = new AnomalyResponse

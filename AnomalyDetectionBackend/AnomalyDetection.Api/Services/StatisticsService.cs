@@ -19,7 +19,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Methods
-        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold, int userId)
+        public void SaveInferenceResult(string category, bool isAnomaly, float score, float threshold, int userId, string imageName)
         {
             var record = new InferenceRecord
             {
@@ -28,7 +28,8 @@ namespace AnomalyDetection.Api.Services
                 Score = score,
                 ThresholdUsed = threshold,
                 Timestamp = DateTime.UtcNow,
-                UserId = userId
+                UserId = userId,
+                ImageName = imageName
             };
 
             _statisticsRepo.AddInferenceRecord(record);
