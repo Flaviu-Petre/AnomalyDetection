@@ -34,7 +34,13 @@ namespace AnomalyDetection.Api.Controllers
                 _logger.LogWarning("[AUTH] Failed registration attempt. Username '{Username}' is already taken.", request.Username);
                 return BadRequest("Username already exists.");
             }
-            _authService.RegisterUser(request.Username, request.Password);
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                _logger.LogWarning("[AUTH] Failed registration attempt. Email is required for username '{Username}'.", request.Username);
+                return BadRequest("Email is required.");
+            }
+            _authService.RegisterUser(request.Username, request.Password, request.Email);
 
             _logger.LogInformation("[AUTH] New user registered successfully: '{Username}'", request.Username);
             return Ok("User registered successfully!");
