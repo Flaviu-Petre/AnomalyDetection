@@ -16,21 +16,17 @@ namespace AnomalyDetection.Api.Repositories
         }
         #endregion
 
-        #region Methods
-        public bool UserExists(string username)
-        {
-            return _db.Users.Any(u => u.Username == username);
-        }
+        #region Methods 
 
+        #region Get Methods
         public User? GetUserByUsername(string username)
         {
             return _db.Users.FirstOrDefault(u => u.Username == username);
         }
 
-        public void AddUser(User user)
+        public User? GetUserById(int userId)
         {
-            _db.Users.Add(user);
-            _db.SaveChanges();
+            return _db.Users.FirstOrDefault(u => u.Id == userId);
         }
 
         public List<User> GetAllUsers()
@@ -38,6 +34,14 @@ namespace AnomalyDetection.Api.Repositories
             return _db.Users
                 .Select(u => new User { Id = u.Id, Username = u.Username, Role = u.Role })
                 .ToList();
+        }
+        #endregion
+
+        #region Update Methods
+        public void AddUser(User user)
+        {
+            _db.Users.Add(user);
+            _db.SaveChanges();
         }
 
         public void UpdateUserRole(int userId, string newRole)
@@ -50,6 +54,14 @@ namespace AnomalyDetection.Api.Repositories
             }
         }
 
+        public void UpdateUser(User user)
+        {
+            _db.Users.Update(user);
+            _db.SaveChanges();
+        }
+        #endregion
+
+        #region Delete Methods
         public void DeleteUser(int userId)
         {
             var user = _db.Users.FirstOrDefault(u => u.Id == userId);
@@ -63,6 +75,15 @@ namespace AnomalyDetection.Api.Repositories
                 throw new KeyNotFoundException("User not found.");
             }
         }
+        #endregion
+
+        #region Existence Check
+        public bool UserExists(string username)
+        {
+            return _db.Users.Any(u => u.Username == username);
+        }
+        #endregion
+
         #endregion
     }
 }
