@@ -1,8 +1,7 @@
-﻿using AnomalyDetection.Api.Models.DTOs;
+﻿using AnomalyDetection.Api.Extensions;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
@@ -30,11 +29,8 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
-
-                int userId = 0;
-                var userIdStr = User.FindFirstValue("id");
-                if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
+                string role = User.GetRole();
+                int userId = User.GetUserId();
 
                 var stats = _statisticsService.GetWeeklyStatistics(userId, role);
 
@@ -58,11 +54,8 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                string role = User.FindFirstValue(ClaimTypes.Role) ?? "User";
-
-                int userId = 0;
-                var userIdStr = User.FindFirstValue("id");
-                if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
+                string role = User.GetRole();
+                int userId = User.GetUserId();
 
                 var pagedHistory = _statisticsService.GetInferenceHistory(userId, role, page, pageSize, sortBy, sortDesc);
 

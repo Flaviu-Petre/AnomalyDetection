@@ -1,4 +1,5 @@
-﻿using AnomalyDetection.Api.Models.DTOs;
+﻿using AnomalyDetection.Api.Extensions;
+using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,9 +41,7 @@ namespace AnomalyDetection.Api.Controllers
                 using var stream = image.OpenReadStream();
                 string imageName = image.FileName ?? "Unknown Image";
 
-                int userId = 0;
-                var userIdStr = User.FindFirstValue("id");
-                if (!string.IsNullOrEmpty(userIdStr)) int.TryParse(userIdStr, out userId);
+                int userId = User.GetUserId();
 
                 var response = await _inferenceService.ProcessImageAsync(stream, imageName, userId, returnHeatmap);
 
