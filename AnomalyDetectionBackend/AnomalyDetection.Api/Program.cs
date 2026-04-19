@@ -25,6 +25,8 @@ builder.Host.UseSerilog((context, configuration) =>
 builder.Services.AddControllers();
 
 builder.Services.AddSingleton<ModelManagerService>();
+builder.Services.AddSingleton<RouterService>();
+
 
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<StatisticsRepository>();
@@ -33,6 +35,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<StatisticsService>();
 builder.Services.AddScoped<FeedbackService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<InferenceService>();
 
 builder.Services.AddCors(options =>
 {
