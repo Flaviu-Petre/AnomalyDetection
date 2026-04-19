@@ -5,7 +5,6 @@ using OpenCvSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System.Text.Json;
 using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
@@ -42,7 +41,7 @@ namespace AnomalyDetection.Api.Services
                 {
                     Size = new Size(256, 256),
                     Mode = ResizeMode.Stretch,
-                    Sampler = KnownResamplers.Triangle
+                    Sampler = KnownResamplers.Bicubic
                 })
                 .Crop(new Rectangle(16, 16, 224, 224))
             );
@@ -66,7 +65,7 @@ namespace AnomalyDetection.Api.Services
                 }
             });
 
-            // Execute Inference
+            // Execute inference
             var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor("input", inputTensor) };
             using var results = _padimSession.Run(inputs);
             var outputTensor = results.First().AsTensor<float>();
@@ -79,8 +78,7 @@ namespace AnomalyDetection.Api.Services
             using Mat blurredMat = new Mat();
             Cv2.GaussianBlur(rawMat, blurredMat, new OpenCvSharp.Size(31, 31), 8.0);
 
-            float[] blurredMap = new float[224 * 224];
-            blurredMat.GetArray(out blurredMap);
+            blurredMat.GetArray(out float[] blurredMap);
 
             // Contrast Masking
             if (applyMask)
@@ -235,78 +233,6 @@ namespace AnomalyDetection.Api.Services
 
             return finalMask224;
 
-        }
-
-        public static async Task<(string Category, float Confidence)> ClassifyImageCategoryAsync(Stream imageStream)
-        {
-            imageStream.Position = 0;
-
-            using var image = await Image.LoadAsync<Rgb24>(imageStream);
-
-            image.Mutate(x => x.Resize(new ResizeOptions
-            {
-                Size = new Size(224, 224),
-                Mode = ResizeMode.Crop
-            }));
-
-            var tensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
-
-            float[] mean = { 0.485f, 0.456f, 0.406f };
-            float[] std = { 0.229f, 0.224f, 0.225f };
-
-            image.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    Span<Rgb24> pixelSpan = accessor.GetRowSpan(y);
-                    for (int x = 0; x < accessor.Width; x++)
-                    {
-                        tensor[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / std[0];
-                        tensor[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / std[1];
-                        tensor[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / std[2];
-                    }
-                }
-            });
-
-            var inputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor("input", tensor)
-            };
-
-            using var session = new InferenceSession("RouterModel/router.onnx");
-            using var results = session.Run(inputs);
-
-            var logits = results.First().AsEnumerable<float>().ToArray();
-
-            float maxLogit = logits.Max();
-            float sumExp = 0f;
-            for (int i = 0; i < logits.Length; i++)
-            {
-                sumExp += (float)Math.Exp(logits[i] - maxLogit);
-            }
-
-            int maxIndex = 0;
-            float maxConfidence = 0f;
-
-            for (int i = 0; i < logits.Length; i++)
-            {
-                float probability = (float)Math.Exp(logits[i] - maxLogit) / sumExp;
-                if (probability > maxConfidence)
-                {
-                    maxConfidence = probability;
-                    maxIndex = i;
-                }
-            }
-
-            var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "RouterModel", "classes.json");
-            var jsonContent = await File.ReadAllTextAsync(jsonPath);
-            var classMapping = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonContent);
-
-            string predictedCategory = classMapping[maxIndex.ToString()];
-
-            imageStream.Position = 0;
-
-            return (predictedCategory, maxConfidence);
         }
         #endregion
     }
