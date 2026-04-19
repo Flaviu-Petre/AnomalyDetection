@@ -5,7 +5,6 @@ using OpenCvSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System.Text.Json;
 using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
@@ -79,8 +78,7 @@ namespace AnomalyDetection.Api.Services
             using Mat blurredMat = new Mat();
             Cv2.GaussianBlur(rawMat, blurredMat, new OpenCvSharp.Size(31, 31), 8.0);
 
-            float[] blurredMap = new float[224 * 224];
-            blurredMat.GetArray(out blurredMap);
+            blurredMat.GetArray(out float[] blurredMap);
 
             // Contrast Masking
             if (applyMask)
