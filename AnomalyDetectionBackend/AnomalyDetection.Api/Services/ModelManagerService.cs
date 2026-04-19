@@ -24,13 +24,13 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Public Methods
-        public (AnomalyDetectionService Service, float Threshold) GetModelForCategory(string category)
+        public (AnomalyDetectionService Service, ModelMetadata Metadata) GetModelForCategory(string category)
         {
             category = category.ToLower();
 
-            if (_activeServices.ContainsKey(category))
+            if (_activeServices.TryGetValue(category, out var svc) && _metadataCache.TryGetValue(category, out var meta))
             {
-                return (_activeServices[category], _metadataCache[category].Threshold);
+                return (svc, meta);
             }
 
             string modelPath = Path.Combine(_modelStorageDirectory, category, $"padim_model_{category}.onnx");
@@ -50,7 +50,7 @@ namespace AnomalyDetection.Api.Services
             _activeServices.TryAdd(category, newService);
             _metadataCache.TryAdd(category, metadata);
 
-            return (newService, metadata.Threshold);
+            return (newService, metadata);
         }
 
         public List<ModelInfo> GetAvailableModels()
@@ -111,6 +111,16 @@ namespace AnomalyDetection.Api.Services
 
             string modelFilePath = Path.Combine(categoryPath, $"padim_model_{normalizedCategory}.onnx");
             string metaFilePath = Path.Combine(categoryPath, $"metadata_{normalizedCategory}.json");
+            string dataFilePath = $"{modelFilePath}.data";
+
+            _activeServices.TryRemove(normalizedCategory, out var oldService);
+            oldService?.Dispose();
+            _metadataCache.TryRemove(normalizedCategory, out _);
+
+            if (File.Exists(dataFilePath))
+            {
+                File.Delete(dataFilePath);
+            }
 
             using (var stream = new FileStream(modelFilePath, FileMode.Create))
             {
@@ -119,7 +129,6 @@ namespace AnomalyDetection.Api.Services
 
             if (onnxData != null)
             {
-                string dataFilePath = $"{modelFilePath}.data";
                 using (var stream = new FileStream(dataFilePath, FileMode.Create))
                 {
                     await onnxData.CopyToAsync(stream);
@@ -130,14 +139,6 @@ namespace AnomalyDetection.Api.Services
             {
                 await jsonMetadata.CopyToAsync(stream);
             }
-
-            _activeServices.TryRemove(normalizedCategory, out var oldService);
-            if (oldService != null)
-            {
-                oldService.Dispose();
-            }
-
-            _metadataCache.TryRemove(normalizedCategory, out _);
 
             _logger.LogInformation("Successfully uploaded and refreshed model for category: {Category}", normalizedCategory);
         }

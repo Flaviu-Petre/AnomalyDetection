@@ -16,7 +16,7 @@ namespace AnomalyDetection.Api.Models.Domain
         [JsonPropertyName("input_size")]
         public int[] InputSize { get; set; } = Array.Empty<int>();
 
-        [JsonPropertyName("calibration_score")]
-        public float CalibrationScore { get; set; }
+        [JsonPropertyName("apply_mask")]
+        public bool ApplyMask { get; set; }
     }
 }

@@ -9,13 +9,6 @@ namespace AnomalyDetection.Api.Services
         private readonly StatisticsService _statisticsService;
         private readonly RouterService _routerService;
         private readonly ILogger<InferenceService> _logger;
-
-
-        private readonly string[] _textureClasses =
-        [
-            "carpet", "grid", "leather", "tile", "wood",
-            "cable", "screw", "transistor", "zipper", "bottle"
-        ];
         #endregion
 
         #region Constructor
@@ -41,20 +34,12 @@ namespace AnomalyDetection.Api.Services
                 throw new InvalidOperationException($"Image not recognized. Please upload a valid factory part. (AI Confidence was only {confidence * 100:F1}%)");
             }
 
-            bool applyMask = !_textureClasses.Contains(normalizedCategory);
-            var (mlService, threshold) = _modelManager.GetModelForCategory(normalizedCategory);
+            var (mlService, metadata) = _modelManager.GetModelForCategory(normalizedCategory);
 
             imageStream.Position = 0;
-            var result = mlService.PredictAnomalyScore(imageStream, threshold, applyMask, returnHeatmap);
+            var result = mlService.PredictAnomalyScore(imageStream, metadata.Threshold, metadata.ApplyMask, returnHeatmap);
 
-            _statisticsService.SaveInferenceResult(
-                normalizedCategory,
-                result.IsAnomaly,
-                result.Score,
-                result.UsedThreshold,
-                userId,
-                imageName
-            );
+            _statisticsService.SaveInferenceResult(normalizedCategory, result.IsAnomaly, result.Score, result.UsedThreshold, userId, imageName);
 
             _logger.LogInformation("[INFERENCE SUCCESS] Category: {Category} | Anomaly Detected: {IsAnomaly} | Score: {Score}",
                 normalizedCategory, result.IsAnomaly, result.Score);
