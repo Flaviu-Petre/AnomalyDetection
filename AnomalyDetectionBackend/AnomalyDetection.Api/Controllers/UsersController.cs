@@ -1,9 +1,8 @@
-﻿using AnomalyDetection.Api.Models.DTOs;
-using AnomalyDetection.Api.Repositories;
+﻿using AnomalyDetection.Api.Extensions;
+using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
@@ -14,11 +13,11 @@ namespace AnomalyDetection.Api.Controllers
     {
         #region Fields
         private readonly UserService _userService;
-        private readonly ILogger<StatisticsController> _logger;
+        private readonly ILogger<UsersController> _logger;
         #endregion
 
         #region Constructor
-        public UsersController(UserService userService, ILogger<StatisticsController> logger)
+        public UsersController(UserService userService, ILogger<UsersController> logger)
         {
             _userService = userService;
             _logger = logger;
@@ -47,7 +46,7 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                var currentUserIdStr = User.FindFirstValue("id");
+                var currentUserIdStr = User.GetUserIdString();
                 if (string.IsNullOrEmpty(currentUserIdStr))
                 {
                     _logger.LogWarning("[SECURITY] Role update blocked: Could not identify the user making the request.");
@@ -63,7 +62,7 @@ namespace AnomalyDetection.Api.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "[SECURITY] Role update blocked: Invalid operation by Admin ID '{AdminId}'.", User.FindFirstValue("id"));
+                _logger.LogWarning(ex, "[SECURITY] Role update blocked: Invalid operation by Admin ID '{AdminId}'.", User.GetUserIdString());
                 return BadRequest(ex.Message);
             }
             catch (ArgumentException ex)
@@ -83,7 +82,7 @@ namespace AnomalyDetection.Api.Controllers
         {
             try
             {
-                var currentUserIdStr = User.FindFirstValue("id");
+                var currentUserIdStr = User.GetUserIdString();
                 if (string.IsNullOrEmpty(currentUserIdStr))
                 {
                     _logger.LogWarning("[SECURITY] User deletion blocked: Could not identify the user making the request.");
@@ -99,7 +98,7 @@ namespace AnomalyDetection.Api.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "[SECURITY] User deletion blocked: Admin ID '{AdminId}' attempted to delete themselves.", User.FindFirstValue("id"));
+                _logger.LogWarning(ex, "[SECURITY] User deletion blocked: Admin ID '{AdminId}' attempted to delete themselves.", User.GetUserIdString());
                 return BadRequest(ex.Message);
             }
             catch (KeyNotFoundException ex)

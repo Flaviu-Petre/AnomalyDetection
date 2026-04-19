@@ -1,9 +1,11 @@
 using AnomalyDetection.Api.Data;
+using AnomalyDetection.Api.Models.Configuration;
 using AnomalyDetection.Api.Repositories;
 using AnomalyDetection.Api.Services;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
@@ -69,9 +71,15 @@ builder.Services.AddOpenApi();
 
 string? connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION");
 
-string jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? throw new Exception("JWT_SECRET missing in .env");
-string jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "AnomalyFactoryApi";
-string jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "AnomalyFactoryFrontend";
+var jwtSettings = new JwtSettings
+{
+    Secret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? throw new InvalidOperationException("JWT_SECRET missing in .env"),
+    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "AnomalyFactoryApi",
+    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "AnomalyFactoryFrontend",
+    ExpirationHours = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRATION_HOURS"), out var hours) ? hours : 8
+};
+
+builder.Services.AddSingleton(Options.Create(jwtSettings));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -82,9 +90,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret))
         };
     });
 
