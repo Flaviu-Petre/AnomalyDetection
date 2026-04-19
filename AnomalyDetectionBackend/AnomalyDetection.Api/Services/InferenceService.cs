@@ -7,6 +7,7 @@ namespace AnomalyDetection.Api.Services
         #region Fields
         private readonly ModelManagerService _modelManager;
         private readonly StatisticsService _statisticsService;
+        private readonly RouterService _routerService;
         private readonly ILogger<InferenceService> _logger;
 
 
@@ -18,10 +19,11 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Constructor
-        public InferenceService(ModelManagerService modelManager, StatisticsService statisticsService, ILogger<InferenceService> logger)
+        public InferenceService(ModelManagerService modelManager, StatisticsService statisticsService, RouterService routerService, ILogger<InferenceService> logger)
         {
             _modelManager = modelManager;
             _statisticsService = statisticsService;
+            _routerService = routerService;
             _logger = logger;
         }
         #endregion
@@ -29,9 +31,7 @@ namespace AnomalyDetection.Api.Services
         #region Methods
         public async Task<AnomalyResponse> ProcessImageAsync(Stream imageStream, string imageName, int userId, bool returnHeatmap)
         {
-            var classificationResult = await AnomalyDetectionService.ClassifyImageCategoryAsync(imageStream);
-            string normalizedCategory = classificationResult.Category.ToLower().Trim();
-            float confidence = classificationResult.Confidence;
+            var (normalizedCategory, confidence) = await _routerService.ClassifyAsync(imageStream);
 
             _logger.LogInformation("[AI ROUTER] Predicted: {Category} with {Confidence}% confidence", normalizedCategory, confidence * 100);
 
