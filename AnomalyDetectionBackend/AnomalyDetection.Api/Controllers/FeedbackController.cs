@@ -57,7 +57,8 @@ namespace AnomalyDetection.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error while saving feedback: {ex.Message}");
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to save feedback for category '{Category}'.", request.Category);
+                return StatusCode(500, "An unexpected internal server error occurred while saving feedback.");
             }
         }
         #endregion
