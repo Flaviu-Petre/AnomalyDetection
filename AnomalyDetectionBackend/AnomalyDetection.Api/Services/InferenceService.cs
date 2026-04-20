@@ -28,7 +28,7 @@ namespace AnomalyDetection.Api.Services
 
             _logger.LogInformation("[AI ROUTER] Predicted: {Category} with {Confidence}% confidence", normalizedCategory, confidence * 100);
 
-            if (normalizedCategory == "unknown" || confidence < 0.93f)
+            if (normalizedCategory == "unknown" || confidence < 0.57f)
             {
                 _logger.LogWarning("[AI ROUTER REJECTED] Image failed threshold. Category: {Category}, Confidence: {Confidence}%", normalizedCategory, confidence * 100);
                 throw new InvalidOperationException($"Image not recognized. Please upload a valid factory part. (AI Confidence was only {confidence * 100:F1}%)");

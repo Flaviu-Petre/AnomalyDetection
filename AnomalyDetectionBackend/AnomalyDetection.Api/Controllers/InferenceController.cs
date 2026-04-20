@@ -3,8 +3,6 @@ using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Rewrite;
-using System.Security.Claims;
 
 namespace AnomalyDetection.Api.Controllers
 {
