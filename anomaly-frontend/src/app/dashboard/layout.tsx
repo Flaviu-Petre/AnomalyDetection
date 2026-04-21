@@ -40,7 +40,7 @@ export default function DashboardLayout({
         <div className="p-6">
           <h1 className="text-2xl font-bold tracking-wider">FactoryOS</h1>
           <p className="text-blue-300 text-sm mt-1">
-            {userRole === "Admin" ? "Admin Portal" : "Operator Portal"}
+            {userRole === "Admin" ? "Admin portal" : "Operator portal"}
           </p>
         </div>
         
@@ -49,13 +49,13 @@ export default function DashboardLayout({
             Dashboard
           </Link>
           <Link href="/dashboard/inference" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/inference' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
-            Run Inference
+            Run inference
           </Link>
           <Link href="/dashboard/history" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/history' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
-            Inference History
+            Inference history
           </Link>
 
-          {/* ROLE-BASED UI: Only show Model Manager and User Manager to Admins! */}
+          {/* Only show model manager and user manager to admins */}
           {userRole === "Admin" && (
             <>
               <Link href="/dashboard/models" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/models' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
@@ -84,11 +84,11 @@ export default function DashboardLayout({
         {/* GLOBAL TOP HEADER */}
         <header className="bg-white shadow-sm z-10 p-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-800">
-            {pathname === '/dashboard' ? 'System overview' : 
-             pathname === '/dashboard/inference' ? 'Run inference' :
-             pathname === '/dashboard/history' ? 'Inference history' :
-             pathname === '/dashboard/models' ? 'Model manager' : 
-             pathname === '/dashboard/users' ? 'User management' : ''}
+            {pathname === '/dashboard' ? 'System overview' :
+              pathname === '/dashboard/inference' ? 'Run inference' :
+                pathname === '/dashboard/history' ? 'Inference history' :
+                  pathname === '/dashboard/models' ? 'Model manager' :
+                    pathname === '/dashboard/users' ? 'User management' : ''}
           </h2>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">

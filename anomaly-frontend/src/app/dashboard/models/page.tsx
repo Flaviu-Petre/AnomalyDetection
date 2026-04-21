@@ -139,9 +139,9 @@ export default function ModelsManagerPage() {
           <form onSubmit={handleUpload} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category name</label>
-              <input 
-                type="text" 
-                placeholder="e.g., bottle, metal_nut, circuit_board"
+              <input
+                type="text"
+                placeholder="e.g., bottle, metal_nut, carpet"
                 value={uploadCategory}
                 onChange={(e) => setUploadCategory(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"
@@ -178,7 +178,7 @@ export default function ModelsManagerPage() {
                 <input 
                   type="file" 
                   onChange={(e) => setOnnxDataFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   required
                 />
               </div>
@@ -190,8 +190,8 @@ export default function ModelsManagerPage() {
               className="w-full py-2.5 bg-blue-700 text-white font-semibold rounded-md shadow hover:bg-blue-800 disabled:bg-gray-400 transition-colors flex justify-center items-center gap-2"
             >
               {isUploading ? (
-                <><svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Uploading to Server...</>
-              ) : "Upload Model"}
+                <><svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Uploading to server...</>
+              ) : "Upload model"}
             </button>
 
             {uploadError && <div className="p-3 bg-red-50 text-red-700 rounded text-sm border border-red-200">{uploadError}</div>}
@@ -199,7 +199,7 @@ export default function ModelsManagerPage() {
           </form>
         </div>
 
-        {/* RIGHT COLUMN: Active Models List */}
+        {/* RIGHT COLUMN: Active models list */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col h-full">
           <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -248,7 +248,7 @@ export default function ModelsManagerPage() {
                         <button 
                           onClick={() => handleDelete(m.category)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors inline-flex items-center gap-1 text-sm font-medium"
-                          title="Delete Model"
+                          title="Delete model"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                           Delete

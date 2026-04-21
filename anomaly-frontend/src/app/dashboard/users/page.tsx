@@ -165,7 +165,7 @@ export default function UsersManagementPage() {
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         {isLoading && users.length === 0 ? (
           <div className="p-12 text-center text-gray-500 flex flex-col items-center">
-             <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
             Loading users...
           </div>
         ) : (
@@ -192,9 +192,8 @@ export default function UsersManagementPage() {
                       )}
                     </td>
                     <td className="p-4 text-sm">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                        user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
-                      }`}>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}>
                         {user.role}
                       </span>
                     </td>
@@ -209,9 +208,8 @@ export default function UsersManagementPage() {
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
                           disabled={updatingId === user.id || user.id.toString() === currentUserId}
-                          className={`rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-colors ${
-                            user.id.toString() === currentUserId 
-                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                          className={`rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-colors ${user.id.toString() === currentUserId
+                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                               : 'bg-white text-gray-900 cursor-pointer'
                           }`}
                         >
@@ -222,9 +220,8 @@ export default function UsersManagementPage() {
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={deletingId === user.id || user.id.toString() === currentUserId}
-                          className={`text-sm font-medium px-2 py-1.5 rounded transition-colors ${
-                            user.id.toString() === currentUserId 
-                              ? 'text-gray-400 cursor-not-allowed' 
+                          className={`text-sm font-medium px-2 py-1.5 rounded transition-colors ${user.id.toString() === currentUserId
+                              ? 'text-gray-400 cursor-not-allowed'
                               : 'text-red-600 hover:text-red-800 hover:bg-red-50'
                           }`}
                         >

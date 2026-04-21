@@ -92,7 +92,7 @@ export default function DashboardPage() {
         <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
         </div>
-        <h3 className="text-lg font-semibold text-gray-800">System Monitoring Active</h3>
+        <h3 className="text-lg font-semibold text-gray-800">System monitoring active</h3>
         <p className="text-gray-500 mt-2 max-w-md mx-auto">
           These statistics reflect the last 7 days of inference data. 
           Upload more images in the Run Inference tab to populate this dashboard.
