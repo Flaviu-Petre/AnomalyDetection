@@ -26,18 +26,21 @@ namespace AnomalyDetection.Api.Services
         {
             var (normalizedCategory, confidence) = await _routerService.ClassifyAsync(imageStream);
 
-            _logger.LogInformation("[AI ROUTER] Predicted: {Category} with {Confidence}% confidence", normalizedCategory, confidence * 100);
+            _logger.LogInformation("[AI ROUTER] Predicted: {Category} with {Confidence}% confidence",
+                normalizedCategory, confidence * 100);
 
-            if (normalizedCategory == "unknown" || confidence < 0.57f)
+            if (normalizedCategory == "unknown")
             {
-                _logger.LogWarning("[AI ROUTER REJECTED] Image failed threshold. Category: {Category}, Confidence: {Confidence}%", normalizedCategory, confidence * 100);
-                throw new InvalidOperationException($"Image not recognized. Please upload a valid factory part. (AI Confidence was only {confidence * 100:F1}%)");
+                _logger.LogWarning("[AI ROUTER REJECTED] Image not recognized. Category: {Category}, Confidence: {Confidence}%",
+                    normalizedCategory, confidence * 100);
+                throw new InvalidOperationException(
+                    $"Image not recognized. Please upload a valid factory part. (AI Confidence was only {confidence * 100:F1}%)");
             }
 
             var (mlService, metadata) = _modelManager.GetModelForCategory(normalizedCategory);
 
             imageStream.Position = 0;
-            var result = mlService.PredictAnomalyScore(imageStream, metadata.Threshold, metadata.ApplyMask, returnHeatmap);
+            var result = mlService.PredictAnomalyScore(imageStream, metadata.OptimalThreshold, returnHeatmap);
 
             _statisticsService.SaveInferenceResult(normalizedCategory, result.IsAnomaly, result.Score, result.UsedThreshold, userId, imageName);
 
