@@ -400,15 +400,16 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
-# =========================
-# Machine Learning Artifacts
-# =========================
+# PatchCore model files
+PatchCore/Encoder/*.onnx
+PatchCore/Encoder/*.onnx.data
+PatchCore/Banks/*.npz
+PatchCore/Metadata/*.json
 
-ModelWeights/
+# Router files
+Router/*.onnx
+Router/text_embeddings.npy
+Router/clip_router_config.json
 
-*.onnx
-*.onnx.data
-
-classes.json
-
+# Environment
 AnomalyDetectionBackend/AnomalyDetection.Api/.env
