@@ -51,7 +51,7 @@ export default function UsersManagementPage() {
       try {
         const decoded: any = jwtDecode(token);
         const userId = decoded.id;
-        
+
         setCurrentUserId(userId ? userId.toString() : null);
       } catch (e) {
         console.error("Failed to decode token", e);
@@ -80,7 +80,7 @@ export default function UsersManagementPage() {
 
       if (response.ok) {
         setSuccessMessage(`Successfully updated user to ${newRole}.`);
-        fetchUsers(); 
+        fetchUsers();
       } else {
         const errorText = await response.text();
         setErrorMessage(errorText || "Failed to update role.");
@@ -117,7 +117,7 @@ export default function UsersManagementPage() {
         setSuccessMessage("User deleted successfully.");
         setUsers(users.filter(user => user.id !== id));
       } else {
-        const errorData = await response.text(); 
+        const errorData = await response.text();
         setErrorMessage(errorData || "Failed to delete user.");
       }
     } catch (error) {
@@ -130,14 +130,14 @@ export default function UsersManagementPage() {
   // --- UI RENDER ---
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      
+
       {/* Page header */}
       <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">User management</h2>
           <p className="text-sm text-gray-500 mt-1">Orchestrate system access and user roles.</p>
         </div>
-        <button 
+        <button
           onClick={fetchUsers}
           disabled={isLoading}
           className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors flex items-center gap-2"
@@ -202,28 +202,28 @@ export default function UsersManagementPage() {
                         {updatingId === user.id && (
                           <svg className="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         )}
-                        
+
                         {/* Role dropdown */}
                         <select
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
                           disabled={updatingId === user.id || user.id.toString() === currentUserId}
                           className={`rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition-colors ${user.id.toString() === currentUserId
-                              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                              : 'bg-white text-gray-900 cursor-pointer'
-                          }`}
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-white text-gray-900 cursor-pointer'
+                            }`}
                         >
                           <option value="Admin">Admin</option>
                           <option value="User">User</option>
                         </select>
-                        
+
                         <button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={deletingId === user.id || user.id.toString() === currentUserId}
                           className={`text-sm font-medium px-2 py-1.5 rounded transition-colors ${user.id.toString() === currentUserId
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-red-600 hover:text-red-800 hover:bg-red-50'
-                          }`}
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                            }`}
                         >
                           {deletingId === user.id ? "Deleting..." : "Delete"}
                         </button>
@@ -232,7 +232,7 @@ export default function UsersManagementPage() {
                     </td>
                   </tr>
                 ))}
-                
+
                 {users.length === 0 && !isLoading && (
                   <tr>
                     <td colSpan={4} className="p-8 text-center text-gray-500">

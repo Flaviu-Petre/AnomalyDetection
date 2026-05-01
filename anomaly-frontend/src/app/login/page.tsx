@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; 
-import Link from "next/link"; 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState(""); 
-  const [isLoading, setIsLoading] = useState(false); 
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,12 +31,12 @@ export default function LoginPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
 
         console.log("Login successful! Token saved.");
-        
+
         router.push("/dashboard");
       } else {
         setErrorMessage("Invalid username or password.");
@@ -51,16 +51,16 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg border border-gray-200">
-        
+
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-blue-900">FactoryOS</h1>
           <p className="mt-2 text-sm text-gray-500">
-            Industrial Anomaly Detection System
+            Industrial anomaly detection system
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
-          
+
           {/* Error Message Box*/}
           {errorMessage && (
             <div className="rounded-md bg-red-50 p-4 border border-red-200">

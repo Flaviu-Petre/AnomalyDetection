@@ -8,7 +8,7 @@ export default function DashboardPage() {
     totalAnomaliesThisWeek: 0,
     overallAnomalyRatePercentage: 0,
   });
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -16,7 +16,7 @@ export default function DashboardPage() {
     const fetchStatistics = async () => {
       try {
         const token = localStorage.getItem("token");
-        
+
         const response = await fetch("https://localhost:7136/api/v1/Statistics", {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -49,7 +49,7 @@ export default function DashboardPage() {
 
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        
+
         {/* Total Scans */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center">
           <h3 className="text-gray-500 text-sm font-medium uppercase tracking-wider">Total Scans (7 Days)</h3>
@@ -94,8 +94,8 @@ export default function DashboardPage() {
         </div>
         <h3 className="text-lg font-semibold text-gray-800">System monitoring active</h3>
         <p className="text-gray-500 mt-2 max-w-md mx-auto">
-          These statistics reflect the last 7 days of inference data. 
-          Upload more images in the Run Inference tab to populate this dashboard.
+          These statistics reflect the last 7 days of inference data.
+          Upload more images in the Run inference tab to populate this dashboard.
         </p>
       </div>
     </>

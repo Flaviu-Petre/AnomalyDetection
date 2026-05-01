@@ -16,7 +16,7 @@ export default function ModelsManagerPage() {
   const [onnxFile, setOnnxFile] = useState<File | null>(null);
   const [onnxDataFile, setOnnxDataFile] = useState<File | null>(null);
   const [jsonFile, setJsonFile] = useState<File | null>(null);
-  
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploadError, setUploadError] = useState("");
@@ -61,11 +61,11 @@ export default function ModelsManagerPage() {
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
-      
+
       formData.append("Category", uploadCategory);
       formData.append("OnnxModel", onnxFile);
       formData.append("JsonMetadata", jsonFile);
-      
+
       if (onnxDataFile) {
         formData.append("OnnxData", onnxDataFile);
       }
@@ -73,7 +73,7 @@ export default function ModelsManagerPage() {
       const response = await fetch("https://localhost:7136/api/v1/Models/upload_model", {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
-        body: formData, 
+        body: formData,
       });
 
       if (response.ok) {
@@ -128,7 +128,7 @@ export default function ModelsManagerPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* LEFT COLUMN: Upload Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border border-gray-200 h-fit">
           <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2">
@@ -153,8 +153,8 @@ export default function ModelsManagerPage() {
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">1. ONNX model file <span className="text-red-500">*</span></label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept=".onnx"
                   onChange={(e) => setOnnxFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
@@ -164,8 +164,8 @@ export default function ModelsManagerPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">2. JSON metadata <span className="text-red-500">*</span></label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept=".json"
                   onChange={(e) => setJsonFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
@@ -175,8 +175,8 @@ export default function ModelsManagerPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">3. ONNX data file <span className="text-red-500">*</span></label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   onChange={(e) => setOnnxDataFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   required
@@ -245,7 +245,7 @@ export default function ModelsManagerPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button 
+                        <button
                           onClick={() => handleDelete(m.category)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors inline-flex items-center gap-1 text-sm font-medium"
                           title="Delete model"

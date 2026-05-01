@@ -121,7 +121,7 @@ export default function InferencePage() {
       {/* Upload & Configuration Card */}
       <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800">Run AI Inspection</h3>
+          <h3 className="text-xl font-semibold text-gray-800">Run AI inspection</h3>
 
           <button
             onClick={handleRunInference}
@@ -133,7 +133,7 @@ export default function InferencePage() {
                 <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Analyzing...
               </>
-            ) : "Run AI Inference"}
+            ) : "Run AI inference"}
           </button>
         </div>
 
@@ -204,7 +204,7 @@ export default function InferencePage() {
 
             {!result && !isLoading && (
               <div className="flex-1 flex items-center justify-center text-gray-400 py-12 text-sm text-center">
-                Upload an image and click "Run AI Inference" to see results.
+                Upload an image and click "Run AI inference" to see results.
               </div>
             )}
 
