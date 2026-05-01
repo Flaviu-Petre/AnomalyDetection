@@ -10,38 +10,50 @@ namespace AnomalyDetection.Api.Services
 {
     public class RouterService : IDisposable
     {
+        #region Constants
+        private static readonly float[] ClipMean = { 0.48145466f, 0.4578275f, 0.40821073f };
+        private static readonly float[] ClipStd = { 0.26862954f, 0.26130258f, 0.27577711f };
+        private const int EmbeddingDim = 512;
+        private const int ImageSize = 224;
+        private const float TemperatureScale = 100f;
+        #endregion
+
         #region Fields
-        private readonly InferenceSession _routerSession;
-        private readonly Dictionary<string, string> _classMapping;
+        private readonly InferenceSession _clipSession;
+        private readonly float[,] _textEmbeddings;
+        private readonly List<string> _categories;
+        private readonly float _oodThreshold;
         private readonly ILogger<RouterService> _logger;
-        #endregion 
+        #endregion
 
         #region Constructor
         public RouterService(ILogger<RouterService> logger)
         {
             _logger = logger;
 
-            string modelPath = Path.Combine(Directory.GetCurrentDirectory(), "RouterModel", "router.onnx");
-            string jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "RouterModel", "classes.json");
+            string encoderPath = Path.Combine(Directory.GetCurrentDirectory(), "Router", "clip_image_encoder.onnx");
+            string embeddingsPath = Path.Combine(Directory.GetCurrentDirectory(), "Router", "text_embeddings.npy");
+            string configPath = Path.Combine(Directory.GetCurrentDirectory(), "Router", "clip_router_config.json");
 
-            if (!File.Exists(modelPath))
-                throw new FileNotFoundException($"Router ONNX model not found at: {modelPath}");
-
-            if (!File.Exists(jsonPath))
-                throw new FileNotFoundException($"Router class mapping not found at: {jsonPath}");
-
-            _logger.LogInformation("[ROUTER] Loading router model into memory from: {Path}", modelPath);
+            if (!File.Exists(encoderPath))
+                throw new FileNotFoundException($"CLIP encoder not found at: {encoderPath}");
+            if (!File.Exists(embeddingsPath))
+                throw new FileNotFoundException($"Text embeddings not found at: {embeddingsPath}");
+            if (!File.Exists(configPath))
+                throw new FileNotFoundException($"Router config not found at: {configPath}");
 
             var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
             options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
-            _routerSession = new InferenceSession(modelPath, options);
+            _clipSession = new InferenceSession(encoderPath, options);
 
-            string jsonContent = File.ReadAllText(jsonPath);
-            _classMapping = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonContent)
-                ?? throw new InvalidOperationException("Failed to deserialize classes.json.");
+            var config = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(configPath));
+            _oodThreshold = config.GetProperty("global_ood_threshold").GetSingle();
 
-            _logger.LogInformation("[ROUTER] Router model loaded. Known categories: {Categories}",
-                string.Join(", ", _classMapping.Values));
+            _categories = LoadCategories(config);
+            _textEmbeddings = LoadNpy(embeddingsPath, _categories.Count, EmbeddingDim);
+
+            _logger.LogInformation("[CLIP ROUTER] Loaded. Categories: {Categories}",
+                string.Join(", ", _categories));
         }
         #endregion
 
@@ -50,30 +62,50 @@ namespace AnomalyDetection.Api.Services
         {
             imageStream.Position = 0;
 
-            using var image = await Image.LoadAsync<Rgb24>(imageStream);
+            using var image = await LoadAndPreprocessAsync(imageStream);
+            var tensor = BuildInputTensor(image);
+            float[] imageEmbedding = RunEncoder(tensor);
+            float[] probs = ComputeSoftmax(imageEmbedding);
 
-            int w = image.Width;
-            int h = image.Height;
-            int newW = w < h ? 256 : (int)Math.Round(256.0 * w / h);
-            int newH = h < w ? 256 : (int)Math.Round(256.0 * h / w);
+            int bestIndex = Array.IndexOf(probs, probs.Max());
+            float confidence = probs[bestIndex];
+            string category = _categories[bestIndex];
 
-            image.Mutate(x => x
-                .Resize(new ResizeOptions
-                {
-                    Size = new Size(newW, newH),
-                    Mode = ResizeMode.Stretch,
-                    Sampler = KnownResamplers.Bicubic
-                })
-            );
+            if (confidence < _oodThreshold)
+            {
+                _logger.LogWarning("[CLIP ROUTER] OOD rejected. Category: {Category}, Confidence: {Confidence:P1}",
+                    category, confidence);
+                return ("unknown", confidence);
+            }
 
-            int cropX = (image.Width - 224) / 2;
-            int cropY = (image.Height - 224) / 2;
-            image.Mutate(x => x.Crop(new Rectangle(cropX, cropY, 224, 224)));
+            _logger.LogDebug("[CLIP ROUTER] Predicted: {Category} ({Confidence:P1})", category, confidence);
 
-            var tensor = new DenseTensor<float>(new[] { 1, 3, 224, 224 });
-            float[] mean = { 0.485f, 0.456f, 0.406f };
-            float[] std = { 0.229f, 0.224f, 0.225f };
+            imageStream.Position = 0;
+            return (category, confidence);
+        }
 
+        public void Dispose()
+        {
+            _clipSession.Dispose();
+        }
+        #endregion
+
+        #region Pipeline Steps
+        private static async Task<Image<Rgb24>> LoadAndPreprocessAsync(Stream imageStream)
+        {
+            var image = await Image.LoadAsync<Rgb24>(imageStream);
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(ImageSize, ImageSize),
+                Mode = ResizeMode.Stretch,
+                Sampler = KnownResamplers.Bicubic
+            }));
+            return image;
+        }
+
+        private static DenseTensor<float> BuildInputTensor(Image<Rgb24> image)
+        {
+            var tensor = new DenseTensor<float>(new[] { 1, 3, ImageSize, ImageSize });
             image.ProcessPixelRows(accessor =>
             {
                 for (int y = 0; y < accessor.Height; y++)
@@ -81,50 +113,73 @@ namespace AnomalyDetection.Api.Services
                     Span<Rgb24> row = accessor.GetRowSpan(y);
                     for (int x = 0; x < row.Length; x++)
                     {
-                        tensor[0, 0, y, x] = ((row[x].R / 255f) - mean[0]) / std[0];
-                        tensor[0, 1, y, x] = ((row[x].G / 255f) - mean[1]) / std[1];
-                        tensor[0, 2, y, x] = ((row[x].B / 255f) - mean[2]) / std[2];
+                        tensor[0, 0, y, x] = ((row[x].R / 255f) - ClipMean[0]) / ClipStd[0];
+                        tensor[0, 1, y, x] = ((row[x].G / 255f) - ClipMean[1]) / ClipStd[1];
+                        tensor[0, 2, y, x] = ((row[x].B / 255f) - ClipMean[2]) / ClipStd[2];
                     }
                 }
             });
+            return tensor;
+        }
 
+        private float[] RunEncoder(DenseTensor<float> tensor)
+        {
             var inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor("input", tensor)
+                NamedOnnxValue.CreateFromTensor("image", tensor)
             };
 
-            using var results = _routerSession.Run(inputs);
-            float[] logits = results.First().AsEnumerable<float>().ToArray();
+            using var results = _clipSession.Run(inputs);
+            return results.First().AsEnumerable<float>().ToArray();
+        }
+
+        private float[] ComputeSoftmax(float[] imageEmbedding)
+        {
+            int numCategories = _categories.Count;
+            float[] logits = new float[numCategories];
+
+            for (int i = 0; i < numCategories; i++)
+            {
+                float dot = 0f;
+                for (int j = 0; j < EmbeddingDim; j++)
+                    dot += imageEmbedding[j] * _textEmbeddings[i, j];
+                logits[i] = TemperatureScale * dot;
+            }
 
             float maxLogit = logits.Max();
             float sumExp = logits.Sum(l => (float)Math.Exp(l - maxLogit));
 
-            int bestIndex = 0;
-            float bestConfidence = 0f;
+            return logits.Select(l => (float)Math.Exp(l - maxLogit) / sumExp).ToArray();
+        }
+        #endregion
 
-            for (int i = 0; i < logits.Length; i++)
-            {
-                float probability = (float)Math.Exp(logits[i] - maxLogit) / sumExp;
-                if (probability > bestConfidence)
-                {
-                    bestConfidence = probability;
-                    bestIndex = i;
-                }
-            }
+        #region Private Helpers
+        private static List<string> LoadCategories(JsonElement config)
+        {
+            var categories = new List<string>();
+            int numCategories = config.GetProperty("num_categories").GetInt32();
+            var categoriesObj = config.GetProperty("categories");
 
-            string predictedCategory = _classMapping[bestIndex.ToString()];
-
-            _logger.LogDebug("[ROUTER] Predicted category: {Category} ({Confidence:P1})",
-                predictedCategory, bestConfidence);
-
-            imageStream.Position = 0;
-
-            return (predictedCategory, bestConfidence);
+            for (int i = 0; i < numCategories; i++)
+                categories.Add(categoriesObj.GetProperty(i.ToString()).GetString()!);
+            return categories;
         }
 
-        public void Dispose()
+        private static float[,] LoadNpy(string path, int rows, int cols)
         {
-            _routerSession.Dispose();
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+            using var br = new BinaryReader(fs);
+
+            br.ReadBytes(8);
+            ushort headerLen = br.ReadUInt16();
+            br.ReadBytes(headerLen);
+
+            var result = new float[rows, cols];
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < cols; j++)
+                    result[i, j] = br.ReadSingle();
+
+            return result;
         }
         #endregion
     }

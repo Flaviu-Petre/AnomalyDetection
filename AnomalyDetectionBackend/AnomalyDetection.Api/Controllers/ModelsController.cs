@@ -28,7 +28,6 @@ namespace AnomalyDetection.Api.Controllers
         public IActionResult GetModels()
         {
             var models = _modelManager.GetAvailableModels();
-
             return Ok(models);
         }
 
@@ -46,10 +45,10 @@ namespace AnomalyDetection.Api.Controllers
                     return BadRequest("Category is required.");
                 }
 
-                if (request.OnnxModel == null || !request.OnnxModel.FileName.EndsWith(".onnx"))
+                if (request.BankFile == null || !request.BankFile.FileName.EndsWith(".npz"))
                 {
-                    _logger.LogWarning("[MODELS] Upload failed for category '{Category}': Invalid ONNX file.", request.Category);
-                    return BadRequest("A valid .onnx model file is required.");
+                    _logger.LogWarning("[MODELS] Upload failed for category '{Category}': Invalid bank file.", request.Category);
+                    return BadRequest("A valid .npz memory bank file is required.");
                 }
 
                 if (request.JsonMetadata == null || !request.JsonMetadata.FileName.EndsWith(".json"))
@@ -58,9 +57,9 @@ namespace AnomalyDetection.Api.Controllers
                     return BadRequest("A valid .json metadata file is required.");
                 }
 
-                await _modelManager.UploadNewModelAsync(request.Category, request.OnnxModel, request.OnnxData, request.JsonMetadata);
+                await _modelManager.UploadNewModelAsync(request.Category, request.BankFile, request.JsonMetadata);
 
-                _logger.LogInformation("[MODELS] Successfully uploaded and registered new model for category: '{Category}'", request.Category);
+                _logger.LogInformation("[MODELS] Successfully uploaded model for category: '{Category}'", request.Category);
 
                 return Ok(new { Message = $"Successfully uploaded and registered the new model for: {request.Category}" });
             }
@@ -85,13 +84,13 @@ namespace AnomalyDetection.Api.Controllers
 
                 _modelManager.DeleteModel(category);
 
-                _logger.LogInformation("[MODELS] Successfully deleted model and cleared memory for category: '{Category}'", category);
+                _logger.LogInformation("[MODELS] Successfully deleted model for category: '{Category}'", category);
 
-                return Ok(new { Message = $"Successfully deleted the model and cleared memory for category: {category}" });
+                return Ok(new { Message = $"Successfully deleted the model for category: {category}" });
             }
-            catch (DirectoryNotFoundException ex)
+            catch (FileNotFoundException ex)
             {
-                _logger.LogWarning(ex, "[MODELS] Delete failed: Directory not found for category '{Category}'.", category);
+                _logger.LogWarning(ex, "[MODELS] Delete failed: Files not found for category '{Category}'.", category);
                 return NotFound(new { Error = "The requested model category could not be found." });
             }
             catch (ArgumentException ex)
@@ -105,7 +104,6 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, new { Error = "An unexpected internal server error occurred while deleting the model." });
             }
         }
-
         #endregion
     }
 }

@@ -1,10 +1,9 @@
-﻿using AnomalyDetection.Api.Models.Domain;
-using Microsoft.ML.OnnxRuntime;
+﻿using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using OpenCvSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using AnomalyDetection.Api.Models.Domain;
 using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
@@ -12,61 +11,62 @@ namespace AnomalyDetection.Api.Services
     public class AnomalyDetectionService : IDisposable
     {
         #region Constants
+        private const int ImageSize = 224;
         private const int ResizeSize = 256;
-        private const int InputSize = 224;
-        private const int CropOffset = 16;
+        private const int GridSize = 16;
+        private const int FeatureDim = 768;
+        private const double GaussianSigma = 4.0;
 
-        private static readonly float[] NormMean = { 0.485f, 0.456f, 0.406f };
-        private static readonly float[] NormStd = { 0.229f, 0.224f, 0.225f };
-
-        private const int SmoothingKernelSize = 31;
-        private const double SmoothingSigma = 8.0;
-
-        private const int BorderOffset = 8;
-        private const double RobustPercentile = 0.995;
-
-        private const double ContrastMaskThreshold = 15.0;
+        private static readonly float[] ImageNetMean = { 0.485f, 0.456f, 0.406f };
+        private static readonly float[] ImageNetStd = { 0.229f, 0.224f, 0.225f };
         #endregion
 
         #region Fields
-        private readonly InferenceSession _padimSession;
+        private readonly InferenceSession _encoderSession;
+        private readonly float[,] _memoryBank;
+        private readonly int _kNeighbours;
         private readonly ILogger<AnomalyDetectionService> _logger;
         #endregion
 
         #region Constructor
-        public AnomalyDetectionService(string padimModelPath, ILogger<AnomalyDetectionService> logger)
+        public AnomalyDetectionService(
+            string encoderPath,
+            string bankPath,
+            int kNeighbours,
+            ILogger<AnomalyDetectionService> logger)
         {
             _logger = logger;
+            _kNeighbours = kNeighbours;
+
             var options = new Microsoft.ML.OnnxRuntime.SessionOptions();
             options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
+            _encoderSession = new InferenceSession(encoderPath, options);
 
-            _logger.LogInformation("[ONNX] Loading Padim model into memory from: {Path}", padimModelPath);
-            _padimSession = new InferenceSession(padimModelPath, options);
-            
+            _memoryBank = LoadMemoryBank(bankPath);
+
+            _logger.LogInformation("[PATCHCORE] Loaded memory bank: {Vectors} vectors of dim {Dim}",
+                _memoryBank.GetLength(0), _memoryBank.GetLength(1));
         }
         #endregion
 
-        #region Public methods
-        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool applyMask = false, bool returnHeatmap = false)
+        #region Public Methods
+        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool returnHeatmap = false)
         {
-            _logger.LogDebug("[ONNX] Starting Padim inference execution...");
-
             using var image = LoadAndPreprocess(imageStream);
-            var inputTensor = NormalizeToTensor(image);
-            float[] rawMap = RunInference(inputTensor);
-            float[] smoothedMap = SmoothMap(rawMap);
+            var tensor = BuildInputTensor(image);
+            float[,] feats = RunEncoder(tensor);
+            float[,] scores = ComputePatchScores(feats);
+            float[,] map = UpsampleScoreMap(scores);
+            float[,] smooth = GaussianSmooth(map, GaussianSigma);
+            float rawScore = Percentile(smooth, 99.5f);
+            float score = rawScore;
 
-            if (applyMask)
-            {
-                ApplyContrastMask(smoothedMap, image);
-            }
-
-            float score = ComputeRobustScore(smoothedMap);
-            string? heatmap = returnHeatmap ? GenerateHeatmapBase64(smoothedMap, image) : null;
+            bool isAnomaly = score > threshold;
+            string? heatmap = returnHeatmap ? GenerateHeatmapBase64(smooth, image) : null;
 
             return new AnomalyResult
             {
-                IsAnomaly = score > threshold,
+                IsAnomaly = isAnomaly,
                 Score = score,
                 UsedThreshold = threshold,
                 HeatmapBase64 = heatmap
@@ -75,209 +75,256 @@ namespace AnomalyDetection.Api.Services
 
         public void Dispose()
         {
-            _padimSession.Dispose();
+            _encoderSession.Dispose();
         }
         #endregion
 
         #region Pipeline Steps
-        private static Image<Rgba32> LoadAndPreprocess(Stream imageStream)
+        private static Image<Rgb24> LoadAndPreprocess(Stream imageStream)
         {
-            var image = Image.Load<Rgba32>(imageStream);
+            var image = Image.Load<Rgb24>(imageStream);
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(ResizeSize, ResizeSize),
+                Mode = ResizeMode.Stretch,
+                Sampler = KnownResamplers.Bicubic
+            }));
 
-            image.Mutate(x => x
-                .Resize(new ResizeOptions
-                {
-                    Size = new Size(ResizeSize, ResizeSize),
-                    Mode = ResizeMode.Stretch,
-                    Sampler = KnownResamplers.Bicubic
-                })
-                .Crop(new Rectangle(CropOffset, CropOffset, InputSize, InputSize))
-            );
+            int cropX = (image.Width - ImageSize) / 2;
+            int cropY = (image.Height - ImageSize) / 2;
+            image.Mutate(x => x.Crop(new Rectangle(cropX, cropY, ImageSize, ImageSize)));
 
             return image;
         }
 
-        private static DenseTensor<float> NormalizeToTensor(Image<Rgba32> image)
+        private static DenseTensor<float> BuildInputTensor(Image<Rgb24> image)
         {
-            var tensor = new DenseTensor<float>(new[] { 1, 3, InputSize, InputSize });
-
+            var tensor = new DenseTensor<float>(new[] { 1, 3, ImageSize, ImageSize });
             image.ProcessPixelRows(accessor =>
             {
                 for (int y = 0; y < accessor.Height; y++)
                 {
-                    Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
-                    for (int x = 0; x < pixelRow.Length; x++)
+                    Span<Rgb24> row = accessor.GetRowSpan(y);
+                    for (int x = 0; x < row.Length; x++)
                     {
-                        ref Rgba32 pixel = ref pixelRow[x];
-                        tensor[0, 0, y, x] = ((pixel.R / 255f) - NormMean[0]) / NormStd[0];
-                        tensor[0, 1, y, x] = ((pixel.G / 255f) - NormMean[1]) / NormStd[1];
-                        tensor[0, 2, y, x] = ((pixel.B / 255f) - NormMean[2]) / NormStd[2];
+                        tensor[0, 0, y, x] = ((row[x].R / 255f) - ImageNetMean[0]) / ImageNetStd[0];
+                        tensor[0, 1, y, x] = ((row[x].G / 255f) - ImageNetMean[1]) / ImageNetStd[1];
+                        tensor[0, 2, y, x] = ((row[x].B / 255f) - ImageNetMean[2]) / ImageNetStd[2];
                     }
                 }
             });
-
             return tensor;
         }
 
-        private float[] RunInference(DenseTensor<float> inputTensor)
+        private float[,] RunEncoder(DenseTensor<float> tensor)
         {
             var inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor("input", inputTensor)
+                NamedOnnxValue.CreateFromTensor("image", tensor)
             };
 
-            using var results = _padimSession.Run(inputs);
-            return results.First().AsTensor<float>().ToArray();
+            using var results = _encoderSession.Run(inputs);
+            float[] raw = results.First().AsEnumerable<float>().ToArray();
+
+            var patches = new float[GridSize * GridSize, FeatureDim];
+            for (int c = 0; c < FeatureDim; c++)
+                for (int h = 0; h < GridSize; h++)
+                    for (int w = 0; w < GridSize; w++)
+                        patches[h * GridSize + w, c] = raw[c * GridSize * GridSize + h * GridSize + w];
+
+            return patches;
         }
 
-        private static float[] SmoothMap(float[] rawMap)
+        private float[,] ComputePatchScores(float[,] patches)
         {
-            using Mat rawMat = new Mat(InputSize, InputSize, MatType.CV_32FC1);
-            rawMat.SetArray(rawMap);
+            int numPatches = patches.GetLength(0);
+            int bankSize = _memoryBank.GetLength(0);
+            var scores = new float[GridSize, GridSize];
 
-            using Mat blurredMat = new Mat();
-            Cv2.GaussianBlur(rawMat, blurredMat, new OpenCvSharp.Size(SmoothingKernelSize, SmoothingKernelSize), SmoothingSigma);
-
-            blurredMat.GetArray(out float[] blurredMap);
-            return blurredMap;
-        }
-
-        private static void ApplyContrastMask(float[] map, Image<Rgba32> image)
-        {
-            float[] contrastMask = GenerateContrastMask(image);
-            for (int i = 0; i < map.Length; i++)
+            for (int p = 0; p < numPatches; p++)
             {
-                if (contrastMask[i] == 0f)
+                // Find k nearest neighbours in memory bank
+                var distances = new float[bankSize];
+                for (int b = 0; b < bankSize; b++)
                 {
-                    map[i] = 0f;
-                }
-            }
-        }
-
-        private static float ComputeRobustScore(float[] map)
-        {
-            var validScores = new List<float>();
-
-            for (int y = BorderOffset; y < InputSize - BorderOffset; y++)
-            {
-                for (int x = BorderOffset; x < InputSize - BorderOffset; x++)
-                {
-                    float val = map[y * InputSize + x];
-                    if (val > 0) validScores.Add(val);
-                }
-            }
-
-            if (validScores.Count == 0) return 0f;
-
-            validScores.Sort();
-            int index = (int)(validScores.Count * RobustPercentile);
-            return validScores[Math.Min(index, validScores.Count - 1)];
-        }
-        #endregion
-
-        #region Heatmap & mask generation
-        private static string GenerateHeatmapBase64(float[] blurredMap, Image<Rgba32> image)
-        {
-            using Mat maskedBlurredMat = new Mat(InputSize, InputSize, MatType.CV_32FC1);
-            maskedBlurredMat.SetArray(blurredMap);
-
-            using Mat normalizedMap = new Mat();
-            Cv2.Normalize(maskedBlurredMat, normalizedMap, 0, 255, NormTypes.MinMax, (int)MatType.CV_8UC1);
-
-            using Mat colorMap = new Mat();
-            Cv2.ApplyColorMap(normalizedMap, colorMap, ColormapTypes.Jet);
-
-            using var heatmapOverlay = new Image<Rgba32>(InputSize, InputSize);
-            heatmapOverlay.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < InputSize; y++)
-                {
-                    Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
-                    for (int x = 0; x < InputSize; x++)
+                    float dist = 0f;
+                    for (int d = 0; d < FeatureDim; d++)
                     {
-                        Vec3b color = colorMap.At<Vec3b>(y, x);
-                        byte alpha = 128;
-                        pixelRow[x] = new Rgba32(color.Item2, color.Item1, color.Item0, alpha);
+                        float diff = patches[p, d] - _memoryBank[b, d];
+                        dist += diff * diff;
+                    }
+                    distances[b] = dist;
+                }
+
+                // Mean of k smallest distances
+                Array.Sort(distances);
+                float meanDist = 0f;
+                for (int k = 0; k < _kNeighbours; k++)
+                    meanDist += distances[k];
+                meanDist /= _kNeighbours;
+
+                int row = p / GridSize;
+                int col = p % GridSize;
+                scores[row, col] = meanDist;
+            }
+
+            return scores;
+        }
+
+        private static float[,] UpsampleScoreMap(float[,] scores)
+        {
+            var upsampled = new float[ImageSize, ImageSize];
+            float scaleH = (float)GridSize / ImageSize;
+            float scaleW = (float)GridSize / ImageSize;
+
+            for (int y = 0; y < ImageSize; y++)
+                for (int x = 0; x < ImageSize; x++)
+                {
+                    int srcY = Math.Min((int)(y * scaleH), GridSize - 1);
+                    int srcX = Math.Min((int)(x * scaleW), GridSize - 1);
+                    upsampled[y, x] = scores[srcY, srcX];
+                }
+
+            return upsampled;
+        }
+
+        private static float[,] GaussianSmooth(float[,] map, double sigma)
+        {
+            int size = map.GetLength(0);
+            var result = new float[size, size];
+            int radius = (int)(3 * sigma);
+            double twoSigmaSq = 2 * sigma * sigma;
+
+            // Build 1D kernel
+            int kernelSize = 2 * radius + 1;
+            var kernel = new double[kernelSize];
+            double sum = 0;
+            for (int i = 0; i < kernelSize; i++)
+            {
+                int x = i - radius;
+                kernel[i] = Math.Exp(-(x * x) / twoSigmaSq);
+                sum += kernel[i];
+            }
+            for (int i = 0; i < kernelSize; i++)
+                kernel[i] /= sum;
+
+            // Horizontal pass
+            var temp = new float[size, size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    double val = 0;
+                    for (int k = 0; k < kernelSize; k++)
+                    {
+                        int sx = Math.Clamp(x + k - radius, 0, size - 1);
+                        val += map[y, sx] * kernel[k];
+                    }
+                    temp[y, x] = (float)val;
+                }
+
+            // Vertical pass
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    double val = 0;
+                    for (int k = 0; k < kernelSize; k++)
+                    {
+                        int sy = Math.Clamp(y + k - radius, 0, size - 1);
+                        val += temp[sy, x] * kernel[k];
+                    }
+                    result[y, x] = (float)val;
+                }
+
+            return result;
+        }
+
+        private static float Percentile(float[,] map, float percentile)
+        {
+            int size = map.GetLength(0);
+            var flat = new float[size * size];
+            int idx = 0;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                    flat[idx++] = map[y, x];
+
+            Array.Sort(flat);
+            float rank = (percentile / 100f) * (flat.Length - 1);
+            int lower = (int)rank;
+            int upper = Math.Min(lower + 1, flat.Length - 1);
+            float frac = rank - lower;
+            return flat[lower] + frac * (flat[upper] - flat[lower]);
+        }
+
+        private static string GenerateHeatmapBase64(float[,] map, Image<Rgb24> original)
+        {
+            int size = map.GetLength(0);
+            float min = float.MaxValue;
+            float max = float.MinValue;
+
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    if (map[y, x] < min) min = map[y, x];
+                    if (map[y, x] > max) max = map[y, x];
+                }
+
+            float range = max - min + 1e-8f;
+
+            using var heatmap = new Image<Rgb24>(size, size);
+            heatmap.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < size; y++)
+                {
+                    Span<Rgb24> row = accessor.GetRowSpan(y);
+                    for (int x = 0; x < size; x++)
+                    {
+                        float norm = (map[y, x] - min) / range;
+                        row[x] = JetColormap(norm);
                     }
                 }
             });
 
-            image.Mutate(ctx => ctx.DrawImage(heatmapOverlay, PixelColorBlendingMode.Normal, PixelAlphaCompositionMode.SrcOver, 1.0f));
-
             using var ms = new MemoryStream();
-            image.SaveAsPng(ms);
-
+            heatmap.SaveAsPng(ms);
             return Convert.ToBase64String(ms.ToArray());
         }
 
-        private static float[] GenerateContrastMask(Image<Rgba32> image)
+        private static Rgb24 JetColormap(float t)
         {
-            using Mat grayMat = new Mat(InputSize, InputSize, MatType.CV_8UC1);
+            float r = Math.Clamp(1.5f - Math.Abs(4f * t - 3f), 0f, 1f);
+            float g = Math.Clamp(1.5f - Math.Abs(4f * t - 2f), 0f, 1f);
+            float b = Math.Clamp(1.5f - Math.Abs(4f * t - 1f), 0f, 1f);
+            return new Rgb24((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
+        }
+        #endregion
 
-            image.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < InputSize; y++)
-                {
-                    Span<Rgba32> row = accessor.GetRowSpan(y);
-                    for (int x = 0; x < InputSize; x++)
-                    {
-                        byte gray = (byte)(0.299 * row[x].R + 0.587 * row[x].G + 0.114 * row[x].B);
-                        grayMat.Set<byte>(y, x, gray);
-                    }
-                }
-            });
+        #region Private Helpers
+        private static float[,] LoadMemoryBank(string path)
+        {
+            using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+            var entry = zip.GetEntry("memory_bank.npy")
+                ?? throw new InvalidOperationException("memory_bank.npy not found in .npz file");
 
-            using Mat blurred = new Mat();
-            Cv2.GaussianBlur(grayMat, blurred, new OpenCvSharp.Size(5, 5), 0);
+            using var stream = entry.Open();
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            ms.Position = 0;
 
-            using Mat bgRoi = new Mat(blurred, new OpenCvSharp.Rect(0, 0, 10, 10));
-            Scalar bgMean = Cv2.Mean(bgRoi);
+            using var br = new BinaryReader(ms);
+            br.ReadBytes(8);
+            ushort headerLen = br.ReadUInt16();
+            string header = System.Text.Encoding.ASCII.GetString(br.ReadBytes(headerLen));
 
-            using Mat diffMat = new Mat();
-            Cv2.Absdiff(blurred, new Scalar(bgMean.Val0), diffMat);
+            var shapeMatch = System.Text.RegularExpressions.Regex.Match(header, @"'shape':\s*\((\d+),\s*(\d+)\)");
+            int rows = int.Parse(shapeMatch.Groups[1].Value);
+            int cols = int.Parse(shapeMatch.Groups[2].Value);
 
-            using Mat threshMat = new Mat();
-            Cv2.Threshold(diffMat, threshMat, ContrastMaskThreshold, 255, ThresholdTypes.Binary);
+            var result = new float[rows, cols];
+            for (int i = 0; i < rows; i++)
+                for (int j = 0; j < cols; j++)
+                    result[i, j] = br.ReadSingle();
 
-            using Mat openKernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(5, 5));
-            using Mat openedMat = new Mat();
-            Cv2.MorphologyEx(threshMat, openedMat, MorphTypes.Open, openKernel);
-
-            Cv2.FindContours(openedMat, out OpenCvSharp.Point[][] contours, out _, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
-
-            using Mat maskMat = new Mat(InputSize, InputSize, MatType.CV_8UC1, new Scalar(0));
-
-            if (contours.Length > 0)
-            {
-                double maxArea = 0;
-                int maxAreaIdx = -1;
-                for (int i = 0; i < contours.Length; i++)
-                {
-                    double area = Cv2.ContourArea(contours[i]);
-                    if (area > maxArea) { maxArea = area; maxAreaIdx = i; }
-                }
-
-                if (maxAreaIdx != -1) Cv2.DrawContours(maskMat, contours, maxAreaIdx, new Scalar(255), Cv2.FILLED);
-                else maskMat.SetTo(new Scalar(255));
-            }
-            else
-            {
-                maskMat.SetTo(new Scalar(255));
-            }
-
-            using Mat finalMaskMat = new Mat();
-            using Mat dilateKernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new OpenCvSharp.Size(15, 15));
-            Cv2.Dilate(maskMat, finalMaskMat, dilateKernel);
-
-            float[] finalMask = new float[InputSize * InputSize];
-            finalMaskMat.GetArray(out byte[] maskBytes);
-
-            for (int i = 0; i < maskBytes.Length; i++)
-            {
-                finalMask[i] = maskBytes[i] > 127 ? 1.0f : 0.0f;
-            }
-
-            return finalMask;
+            return result;
         }
         #endregion
     }
