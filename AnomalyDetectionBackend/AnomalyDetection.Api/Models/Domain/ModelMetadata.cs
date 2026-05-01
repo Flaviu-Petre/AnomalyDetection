@@ -4,19 +4,52 @@ namespace AnomalyDetection.Api.Models.Domain
 {
     public class ModelMetadata
     {
+        [JsonPropertyName("class_name")]
+        public string ClassName { get; set; } = string.Empty;
+
         [JsonPropertyName("model_name")]
         public string ModelName { get; set; } = string.Empty;
 
-        [JsonPropertyName("category")]
-        public string Category { get; set; } = string.Empty;
+        [JsonPropertyName("feature_dim")]
+        public int FeatureDim { get; set; }
 
-        [JsonPropertyName("threshold")]
-        public float Threshold { get; set; }
+        [JsonPropertyName("grid_size")]
+        public int GridSize { get; set; }
 
-        [JsonPropertyName("input_size")]
-        public int[] InputSize { get; set; } = Array.Empty<int>();
+        [JsonPropertyName("k_neighbours")]
+        public int KNeighbours { get; set; }
 
-        [JsonPropertyName("apply_mask")]
-        public bool ApplyMask { get; set; }
+        [JsonPropertyName("optimal_threshold")]
+        public float OptimalThreshold { get; set; }
+
+        [JsonPropertyName("image_auroc")]
+        public float ImageAuroc { get; set; }
+
+        [JsonPropertyName("pixel_auroc")]
+        public float PixelAuroc { get; set; }
+
+        [JsonPropertyName("memory_bank_size")]
+        public int MemoryBankSize { get; set; }
+
+        [JsonPropertyName("bank_file")]
+        public string BankFile { get; set; } = string.Empty;
+
+        [JsonPropertyName("preprocessing")]
+        public PreprocessingConfig Preprocessing { get; set; } = new();
+    }
+
+    public class PreprocessingConfig
+    {
+        [JsonPropertyName("resize")]
+        public int Resize { get; set; }
+
+        [JsonPropertyName("crop")]
+        public int Crop { get; set; }
+
+        [JsonPropertyName("mean")]
+        public float[] Mean { get; set; } = Array.Empty<float>();
+
+        [JsonPropertyName("std")]
+        public float[] Std { get; set; } = Array.Empty<float>();
     }
 }
