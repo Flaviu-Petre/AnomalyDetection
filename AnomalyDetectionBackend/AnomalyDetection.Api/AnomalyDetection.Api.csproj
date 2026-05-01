@@ -8,6 +8,13 @@
 		<NuGetAudit>false</NuGetAudit>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <Compile Remove="ModelWeights\**" />
+	  <Content Remove="ModelWeights\**" />
+	  <EmbeddedResource Remove="ModelWeights\**" />
+	  <None Remove="ModelWeights\**" />
+	</ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
@@ -29,17 +36,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ModelWeights\bottle\" />
-    <Folder Include="RouterModel\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="RouterModel\router.onnx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="RouterModel\router.onnx.data">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Folder Include="Router\" />
+    <Folder Include="PatchCore\Encoder\" />
+    <Folder Include="PatchCore\Banks\" />
+    <Folder Include="PatchCore\Metadata\" />
   </ItemGroup>
 
 </Project>

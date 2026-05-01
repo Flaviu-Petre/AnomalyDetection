@@ -401,15 +401,10 @@ FodyWeavers.xsd
 *.sln.iml
 
 # PatchCore model files
-PatchCore/Encoder/*.onnx
-PatchCore/Encoder/*.onnx.data
-PatchCore/Banks/*.npz
-PatchCore/Metadata/*.json
+AnomalyDetectionBackend/AnomalyDetection.Api/PatchCore/
 
 # Router files
-Router/*.onnx
-Router/text_embeddings.npy
-Router/clip_router_config.json
+AnomalyDetectionBackend/AnomalyDetection.Api/Router/
 
 # Environment
 AnomalyDetectionBackend/AnomalyDetection.Api/.env
