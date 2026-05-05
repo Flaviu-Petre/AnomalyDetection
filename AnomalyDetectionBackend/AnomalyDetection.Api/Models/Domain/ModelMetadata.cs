@@ -22,6 +22,12 @@ namespace AnomalyDetection.Api.Models.Domain
         [JsonPropertyName("optimal_threshold")]
         public float OptimalThreshold { get; set; }
 
+        [JsonPropertyName("score_min")]
+        public float ScoreMin { get; set; }
+
+        [JsonPropertyName("score_max")]
+        public float ScoreMax { get; set; }
+
         [JsonPropertyName("image_auroc")]
         public float ImageAuroc { get; set; }
 

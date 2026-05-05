@@ -12,10 +12,12 @@ namespace AnomalyDetection.Api.Services
     {
         #region Constants
         private const int ImageSize = 224;
-        private const int ResizeSize = 256;
         private const int GridSize = 16;
         private const int FeatureDim = 768;
         private const double GaussianSigma = 4.0;
+
+        private const float OverlayImageWeight = 0.6f;
+        private const float OverlayHeatmapWeight = 0.4f;
 
         private static readonly float[] ImageNetMean = { 0.485f, 0.456f, 0.406f };
         private static readonly float[] ImageNetStd = { 0.229f, 0.224f, 0.225f };
@@ -50,7 +52,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Public Methods
-        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, bool returnHeatmap = false)
+        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, float scoreMin, float scoreMax, bool returnHeatmap = false)
         {
             using var image = LoadAndPreprocess(imageStream);
             var tensor = BuildInputTensor(image);
@@ -59,15 +61,23 @@ namespace AnomalyDetection.Api.Services
             float[,] map = UpsampleScoreMap(scores);
             float[,] smooth = GaussianSmooth(map, GaussianSigma);
             float rawScore = Percentile(smooth, 99.5f);
-            float score = rawScore;
 
-            bool isAnomaly = score > threshold;
-            string? heatmap = returnHeatmap ? GenerateHeatmapBase64(smooth, image) : null;
+            float denom = (scoreMax - scoreMin) + 1e-8f;
+            float normalized = (rawScore - scoreMin) / denom;
+            if (normalized < 0f) normalized = 0f;
+
+            bool isAnomaly = normalized > threshold;
+
+            _logger.LogDebug(
+                "[PATCHCORE] raw={Raw:F4}  min={Min:F4}  max={Max:F4}  norm={Norm:F4}  thr={Thr:F4}  anomaly={IsAnomaly}",
+                rawScore, scoreMin, scoreMax, normalized, threshold, isAnomaly);
+
+            string? heatmap = returnHeatmap ? GenerateOverlayHeatmapBase64(smooth, image) : null;
 
             return new AnomalyResult
             {
                 IsAnomaly = isAnomaly,
-                Score = score,
+                Score = normalized,
                 UsedThreshold = threshold,
                 HeatmapBase64 = heatmap
             };
@@ -85,15 +95,10 @@ namespace AnomalyDetection.Api.Services
             var image = Image.Load<Rgb24>(imageStream);
             image.Mutate(x => x.Resize(new ResizeOptions
             {
-                Size = new Size(ResizeSize, ResizeSize),
+                Size = new Size(ImageSize, ImageSize),
                 Mode = ResizeMode.Stretch,
                 Sampler = KnownResamplers.Bicubic
             }));
-
-            int cropX = (image.Width - ImageSize) / 2;
-            int cropY = (image.Height - ImageSize) / 2;
-            image.Mutate(x => x.Crop(new Rectangle(cropX, cropY, ImageSize, ImageSize)));
-
             return image;
         }
 
@@ -255,37 +260,50 @@ namespace AnomalyDetection.Api.Services
             return flat[lower] + frac * (flat[upper] - flat[lower]);
         }
 
-        private static string GenerateHeatmapBase64(float[,] map, Image<Rgb24> original)
+        private static string GenerateOverlayHeatmapBase64(float[,] map, Image<Rgb24> input)
         {
             int size = map.GetLength(0);
-            float min = float.MaxValue;
-            float max = float.MinValue;
 
+            float max = float.MinValue;
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
-                {
-                    if (map[y, x] < min) min = map[y, x];
                     if (map[y, x] > max) max = map[y, x];
-                }
 
-            float range = max - min + 1e-8f;
+            float denom = max + 1e-8f;
 
-            using var heatmap = new Image<Rgb24>(size, size);
-            heatmap.ProcessPixelRows(accessor =>
+            int width = Math.Min(input.Width, size);
+            int height = Math.Min(input.Height, size);
+
+            using var output = new Image<Rgb24>(width, height);
+
+            input.ProcessPixelRows(output, (inAcc, outAcc) =>
             {
-                for (int y = 0; y < size; y++)
+                for (int y = 0; y < height; y++)
                 {
-                    Span<Rgb24> row = accessor.GetRowSpan(y);
-                    for (int x = 0; x < size; x++)
+                    Span<Rgb24> inRow = inAcc.GetRowSpan(y);
+                    Span<Rgb24> outRow = outAcc.GetRowSpan(y);
+                    for (int x = 0; x < width; x++)
                     {
-                        float norm = (map[y, x] - min) / range;
-                        row[x] = JetColormap(norm);
+                        float t = map[y, x] / denom;
+                        if (t < 0f) t = 0f;
+                        else if (t > 1f) t = 1f;
+
+                        Rgb24 jet = JetColormap(t);
+
+                        float r = OverlayImageWeight * (inRow[x].R / 255f) + OverlayHeatmapWeight * (jet.R / 255f);
+                        float g = OverlayImageWeight * (inRow[x].G / 255f) + OverlayHeatmapWeight * (jet.G / 255f);
+                        float b = OverlayImageWeight * (inRow[x].B / 255f) + OverlayHeatmapWeight * (jet.B / 255f);
+
+                        outRow[x] = new Rgb24(
+                            (byte)Math.Clamp(r * 255f, 0f, 255f),
+                            (byte)Math.Clamp(g * 255f, 0f, 255f),
+                            (byte)Math.Clamp(b * 255f, 0f, 255f));
                     }
                 }
             });
 
             using var ms = new MemoryStream();
-            heatmap.SaveAsPng(ms);
+            output.SaveAsPng(ms);
             return Convert.ToBase64String(ms.ToArray());
         }
 

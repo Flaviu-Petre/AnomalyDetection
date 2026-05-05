@@ -57,7 +57,7 @@ namespace AnomalyDetection.Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred during Padim inference.");
+                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred during inference.");
                 return StatusCode(500, "An unexpected internal server error occurred while processing the image.");
             }
         }

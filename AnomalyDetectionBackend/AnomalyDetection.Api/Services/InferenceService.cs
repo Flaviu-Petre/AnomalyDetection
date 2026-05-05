@@ -40,7 +40,13 @@ namespace AnomalyDetection.Api.Services
             var (mlService, metadata) = _modelManager.GetModelForCategory(normalizedCategory);
 
             imageStream.Position = 0;
-            var result = mlService.PredictAnomalyScore(imageStream, metadata.OptimalThreshold, returnHeatmap);
+
+            var result = mlService.PredictAnomalyScore(
+                imageStream,
+                metadata.OptimalThreshold,
+                metadata.ScoreMin,
+                metadata.ScoreMax,
+                returnHeatmap);
 
             _statisticsService.SaveInferenceResult(normalizedCategory, result.IsAnomaly, result.Score, result.UsedThreshold, userId, imageName);
 
