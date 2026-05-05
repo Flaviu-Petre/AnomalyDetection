@@ -48,8 +48,9 @@ export default function ModelsManagerPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!uploadCategory || !bankFile || !jsonFile) {
-      setUploadError("Category, .npz memory bank file, and .json metadata file are strictly required.");
+      setUploadError("Category, .npz memory bank file, and .json metadata file are all required.");
       return;
     }
 
@@ -72,7 +73,7 @@ export default function ModelsManagerPage() {
       });
 
       if (response.ok) {
-        setUploadMessage(`Successfully uploaded AI model for '${uploadCategory}'!`);
+        setUploadMessage(`Successfully uploaded memory bank for '${uploadCategory}'!`);
         setUploadCategory("");
         setBankFile(null);
         setJsonFile(null);
@@ -118,7 +119,7 @@ export default function ModelsManagerPage() {
     <div className="max-w-400 mx-auto space-y-8">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-800">AI model management</h2>
-        <p className="text-gray-600 mt-1">Upload new neural networks or manage existing ones.</p>
+        <p className="text-gray-600 mt-1">Upload a new memory bank for a category, or manage existing ones.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -127,9 +128,9 @@ export default function ModelsManagerPage() {
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border border-gray-200 h-fit">
           <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            Upload new model
+            Upload new memory bank
           </h3>
 
           <form onSubmit={handleUpload} className="space-y-5">
@@ -154,13 +155,13 @@ export default function ModelsManagerPage() {
                 <input
                   type="file"
                   accept=".npz"
-                  onChange={(e) => setBankFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  onChange={(e) => setBankFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  The patchcore_memory_{"{category}"}.npz file.
-                </p>
+                {bankFile && (
+                  <p className="text-xs text-green-600 mt-1 truncate">✓ {bankFile.name}</p>
+                )}
               </div>
 
               <div>
@@ -170,30 +171,30 @@ export default function ModelsManagerPage() {
                 <input
                   type="file"
                   accept=".json"
-                  onChange={(e) => setJsonFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  onChange={(e) => setJsonFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  The metadata_{"{category}"}.json file.
-                </p>
+                {jsonFile && (
+                  <p className="text-xs text-green-600 mt-1 truncate">✓ {jsonFile.name}</p>
+                )}
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={isUploading || !uploadCategory || !bankFile || !jsonFile}
-              className="w-full py-2.5 bg-blue-700 text-white font-semibold rounded-md shadow hover:bg-blue-800 disabled:bg-gray-400 transition-colors flex justify-center items-center gap-2"
+              disabled={isUploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               {isUploading ? (
                 <>
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Uploading to server...
                 </>
-              ) : "Upload model"}
+              ) : "Upload memory bank"}
             </button>
 
             {uploadError && (
@@ -210,9 +211,9 @@ export default function ModelsManagerPage() {
           <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
-              Active models on server
+              Active categories on server
             </h3>
             <button onClick={fetchModels} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
               Refresh list
@@ -223,27 +224,27 @@ export default function ModelsManagerPage() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center p-12 text-gray-400">
                 <svg className="animate-spin h-8 w-8 mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <p>Loading models...</p>
+                <p>Loading categories...</p>
               </div>
             ) : fetchError ? (
               <div className="p-6 text-center text-red-500">{fetchError}</div>
             ) : models.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-16 text-gray-400 text-center">
                 <svg className="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
-                <p className="text-lg font-medium text-gray-600">No models found</p>
-                <p className="text-sm mt-1">Upload a model using the form to get started.</p>
+                <p className="text-lg font-medium text-gray-600">No categories found</p>
+                <p className="text-sm mt-1">Upload a memory bank using the form to get started.</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
                     <th className="p-4 font-semibold">Category</th>
-                    <th className="p-4 font-semibold">Optimal threshold</th>
+                    <th className="p-4 font-semibold">Configured threshold</th>
                     <th className="p-4 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
@@ -263,10 +264,10 @@ export default function ModelsManagerPage() {
                         <button
                           onClick={() => handleDelete(m.category)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors inline-flex items-center gap-1 text-sm font-medium"
-                          title="Delete model"
+                          title="Delete category"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                           Delete
                         </button>
