@@ -38,7 +38,7 @@ export default function DashboardLayout({
       {/* GLOBAL SIDEBAR */}
       <aside className="w-64 bg-blue-900 text-white flex flex-col">
         <div className="p-6">
-          <h1 className="text-2xl font-bold tracking-wider">FactoryOS</h1>
+          <h1 className="text-2xl font-bold tracking-wider">Digital Eye</h1>
           <p className="text-blue-300 text-sm mt-1">
             {userRole === "Admin" ? "Admin portal" : "Operator portal"}
           </p>

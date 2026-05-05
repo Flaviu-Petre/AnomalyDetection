@@ -80,7 +80,7 @@ namespace AnomalyDetection.Api.Services
                 string.Join(", ", _categories));
             _logger.LogInformation("[CLIP ROUTER] Decoy remap: {Remap}",
                 string.Join(", ", _decoyRemap.Select(kv => $"{kv.Key}→{kv.Value}")));
-            _logger.LogInformation("[CLIP ROUTER] Confidence gating: ACTIVE (capsule/pill<0.91, bottle<0.75, carpet<0.90)");
+            _logger.LogInformation("[CLIP ROUTER] Confidence gating: ACTIVE (capsule/pill<0.905, bottle<0.75, carpet<0.90)");
             _logger.LogInformation("[CLIP ROUTER] Per-category thresholds active for: {Classes}",
                 string.Join(", ", _perCategoryThresholds.Select(kv => $"{kv.Key}={kv.Value:P1}")));
         }
