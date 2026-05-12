@@ -16,13 +16,6 @@ namespace AnomalyDetection.Api.Services
         private const int EmbeddingDim = 512;
         private const int ImageSize = 224;
         private const float TemperatureScale = 100f;
-
-        private static readonly HashSet<string> PerCategoryThresholdClasses = new()
-        {
-            "toothbrush",   
-            "tile",        
-            "metal_nut",   
-        };
         #endregion
 
         #region Fields
@@ -31,7 +24,6 @@ namespace AnomalyDetection.Api.Services
         private readonly List<string> _categories;
         private readonly float _oodThreshold;
         private readonly Dictionary<string, string> _decoyRemap;
-        private readonly Dictionary<string, float> _perCategoryThresholds;
         private readonly ILogger<RouterService> _logger;
         #endregion
 
@@ -68,21 +60,10 @@ namespace AnomalyDetection.Api.Services
                     _decoyRemap[kv.Name] = kv.Value.GetString()!;
             }
 
-            _perCategoryThresholds = new Dictionary<string, float>();
-            if (config.TryGetProperty("per_category_thresholds", out var perCatEl))
-            {
-                foreach (var kv in perCatEl.EnumerateObject())
-                    if (PerCategoryThresholdClasses.Contains(kv.Name))
-                        _perCategoryThresholds[kv.Name] = kv.Value.GetSingle();
-            }
-
             _logger.LogInformation("[CLIP ROUTER] Loaded. Categories: {Categories}",
                 string.Join(", ", _categories));
             _logger.LogInformation("[CLIP ROUTER] Decoy remap: {Remap}",
                 string.Join(", ", _decoyRemap.Select(kv => $"{kv.Key}→{kv.Value}")));
-            _logger.LogInformation("[CLIP ROUTER] Confidence gating: ACTIVE (capsule/pill<0.905, bottle<0.75, carpet<0.90)");
-            _logger.LogInformation("[CLIP ROUTER] Per-category thresholds active for: {Classes}",
-                string.Join(", ", _perCategoryThresholds.Select(kv => $"{kv.Key}={kv.Value:P1}")));
         }
         #endregion
 
@@ -107,19 +88,12 @@ namespace AnomalyDetection.Api.Services
                 category = realCategory;
             }
 
-            (category, confidence) = ApplyConfidenceGating(category, confidence, probs);
-
-            float effectiveThreshold = _perCategoryThresholds.TryGetValue(category, out var catThreshold)
-                ? catThreshold
-                : _oodThreshold;
-
-            if (confidence < effectiveThreshold)
+            if (confidence < _oodThreshold)
             {
                 _logger.LogWarning(
                     "[CLIP ROUTER] OOD rejected. Category: {Category}, Confidence: {Confidence:P1}, " +
-                    "Threshold: {Threshold:P1} ({ThresholdType})",
-                    category, confidence, effectiveThreshold,
-                    _perCategoryThresholds.ContainsKey(category) ? "per-category" : "global");
+                    "Threshold: {Threshold:P1} (global)",
+                    category, confidence, _oodThreshold);
                 return ("unknown", confidence);
             }
 
@@ -199,48 +173,6 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Private Helpers
-
-        private (string Category, float Confidence) ApplyConfidenceGating(
-            string category, float confidence, float[] probs)
-        {
-            if ((category == "capsule" || category == "pill") && confidence < 0.905f)
-            {
-                _logger.LogInformation(
-                    "[CLIP ROUTER] Confidence gating: '{Category}' ({Confidence:P1}) → 'toothbrush'",
-                    category, confidence);
-                return ("toothbrush", confidence);
-            }
-
-            if (category == "bottle" && confidence < 0.75f)
-            {
-                int idx = _categories.IndexOf("metal_nut");
-                if (idx >= 0 && probs[idx] > 0.10f)
-                {
-                    float combined = confidence + probs[idx];
-                    _logger.LogInformation(
-                        "[CLIP ROUTER] Confidence gating: '{Category}' ({Confidence:P1}) → 'metal_nut' " +
-                        "(metal_nut score: {Score:P1}, combined: {Combined:P1})",
-                        category, confidence, probs[idx], combined);
-                    return ("metal_nut", combined);
-                }
-            }
-
-            if (category == "carpet" && confidence < 0.90f)
-            {
-                int idx = _categories.IndexOf("tile");
-                if (idx >= 0 && probs[idx] > 0.05f)
-                {
-                    float combined = confidence + probs[idx];
-                    _logger.LogInformation(
-                        "[CLIP ROUTER] Confidence gating: '{Category}' ({Confidence:P1}) → 'tile' " +
-                        "(tile score: {Score:P1}, combined: {Combined:P1})",
-                        category, confidence, probs[idx], combined);
-                    return ("tile", combined);
-                }
-            }
-
-            return (category, confidence);
-        }
 
         private static List<string> LoadCategories(JsonElement config)
         {
