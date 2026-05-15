@@ -20,10 +20,9 @@ namespace AnomalyDetection.Api.Services
 
         #region Fields
         private readonly InferenceSession _clipSession;
-        private readonly float[,] _textEmbeddings;
+        private readonly float[,] _referenceEmbeddings;
         private readonly List<string> _categories;
         private readonly float _oodThreshold;
-        private readonly Dictionary<string, string> _decoyRemap;
         private readonly ILogger<RouterService> _logger;
         #endregion
 
@@ -39,7 +38,7 @@ namespace AnomalyDetection.Api.Services
             if (!File.Exists(encoderPath))
                 throw new FileNotFoundException($"CLIP encoder not found at: {encoderPath}");
             if (!File.Exists(embeddingsPath))
-                throw new FileNotFoundException($"Text embeddings not found at: {embeddingsPath}");
+                throw new FileNotFoundException($"Reference embeddings not found at: {embeddingsPath}");
             if (!File.Exists(configPath))
                 throw new FileNotFoundException($"Router config not found at: {configPath}");
 
@@ -48,22 +47,16 @@ namespace AnomalyDetection.Api.Services
             _clipSession = new InferenceSession(encoderPath, options);
 
             var config = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(configPath));
+
             _oodThreshold = config.GetProperty("global_ood_threshold").GetSingle();
 
             _categories = LoadCategories(config);
-            _textEmbeddings = LoadNpy(embeddingsPath, _categories.Count, EmbeddingDim);
-
-            _decoyRemap = new Dictionary<string, string>();
-            if (config.TryGetProperty("decoy_remap", out var remapEl))
-            {
-                foreach (var kv in remapEl.EnumerateObject())
-                    _decoyRemap[kv.Name] = kv.Value.GetString()!;
-            }
+            _referenceEmbeddings = LoadNpy(embeddingsPath, _categories.Count, EmbeddingDim);
 
             _logger.LogInformation("[CLIP ROUTER] Loaded. Categories: {Categories}",
                 string.Join(", ", _categories));
-            _logger.LogInformation("[CLIP ROUTER] Decoy remap: {Remap}",
-                string.Join(", ", _decoyRemap.Select(kv => $"{kv.Key}→{kv.Value}")));
+            _logger.LogInformation("[CLIP ROUTER] OOD Threshold set to: {Threshold:P1}",
+                _oodThreshold);
         }
         #endregion
 
@@ -80,13 +73,6 @@ namespace AnomalyDetection.Api.Services
             int bestIndex = Array.IndexOf(probs, probs.Max());
             float confidence = probs[bestIndex];
             string category = _categories[bestIndex];
-
-            if (_decoyRemap.TryGetValue(category, out var realCategory))
-            {
-                _logger.LogDebug("[CLIP ROUTER] Decoy '{Decoy}' remapped to '{Real}'",
-                    category, realCategory);
-                category = realCategory;
-            }
 
             if (confidence < _oodThreshold)
             {
@@ -161,7 +147,7 @@ namespace AnomalyDetection.Api.Services
             {
                 float dot = 0f;
                 for (int j = 0; j < EmbeddingDim; j++)
-                    dot += imageEmbedding[j] * _textEmbeddings[i, j];
+                    dot += imageEmbedding[j] * _referenceEmbeddings[i, j];
                 logits[i] = TemperatureScale * dot;
             }
 
