@@ -146,10 +146,11 @@ namespace AnomalyDetection.Api.Services
             int bankSize = _memoryBank.GetLength(0);
             var scores = new float[GridSize, GridSize];
 
-            for (int p = 0; p < numPatches; p++)
+            Parallel.For(0, numPatches, p =>
             {
                 // Find k nearest neighbours in memory bank
                 var distances = new float[bankSize];
+
                 for (int b = 0; b < bankSize; b++)
                 {
                     float dist = 0f;
@@ -163,6 +164,7 @@ namespace AnomalyDetection.Api.Services
 
                 // Mean of k smallest distances
                 Array.Sort(distances);
+
                 float meanDist = 0f;
                 for (int k = 0; k < _kNeighbours; k++)
                     meanDist += distances[k];
@@ -170,8 +172,9 @@ namespace AnomalyDetection.Api.Services
 
                 int row = p / GridSize;
                 int col = p % GridSize;
+
                 scores[row, col] = meanDist;
-            }
+            });
 
             return scores;
         }
