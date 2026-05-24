@@ -52,7 +52,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Public Methods
-        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, float scoreMin, float scoreMax, bool returnHeatmap = false)
+        public AnomalyResult PredictAnomalyScore(Stream imageStream, float threshold, float scoreMin, float scoreMax, bool applyMask, bool heatmapUseGlobalMax, bool returnHeatmap = false)
         {
             using var image = LoadAndPreprocess(imageStream);
             var tensor = BuildInputTensor(image);
@@ -60,7 +60,11 @@ namespace AnomalyDetection.Api.Services
             float[,] scores = ComputePatchScores(feats);
             float[,] map = UpsampleScoreMap(scores);
             float[,] smooth = GaussianSmooth(map, GaussianSigma);
-            float rawScore = Percentile(smooth, 99.5f);
+
+            bool[,] mask = ForegroundMask.Compute(image, applyMask);
+            ApplyMask(smooth, mask);
+
+            float rawScore = Percentile(smooth, mask, 99.5f);
 
             float denom = (scoreMax - scoreMin) + 1e-8f;
             float normalized = (rawScore - scoreMin) / denom;
@@ -69,10 +73,10 @@ namespace AnomalyDetection.Api.Services
             bool isAnomaly = normalized > threshold;
 
             _logger.LogDebug(
-                "[PATCHCORE] raw={Raw:F4}  min={Min:F4}  max={Max:F4}  norm={Norm:F4}  thr={Thr:F4}  anomaly={IsAnomaly}",
-                rawScore, scoreMin, scoreMax, normalized, threshold, isAnomaly);
+                "[PATCHCORE] raw={Raw:F4}  min={Min:F4}  max={Max:F4}  norm={Norm:F4}  thr={Thr:F4}  anomaly={IsAnomaly}  masking={ApplyMask}",
+                rawScore, scoreMin, scoreMax, normalized, threshold, isAnomaly, applyMask);
 
-            string? heatmap = returnHeatmap ? GenerateOverlayHeatmapBase64(smooth, image) : null;
+            string? heatmap = returnHeatmap ? GenerateOverlayHeatmapBase64(smooth, mask, image, scoreMin, scoreMax, heatmapUseGlobalMax, isAnomaly) : null;
 
             return new AnomalyResult
             {
@@ -148,7 +152,6 @@ namespace AnomalyDetection.Api.Services
 
             Parallel.For(0, numPatches, p =>
             {
-                // Find k nearest neighbours in memory bank
                 var distances = new float[bankSize];
 
                 for (int b = 0; b < bankSize; b++)
@@ -162,7 +165,6 @@ namespace AnomalyDetection.Api.Services
                     distances[b] = dist;
                 }
 
-                // Mean of k smallest distances
                 Array.Sort(distances);
 
                 float meanDist = 0f;
@@ -203,7 +205,6 @@ namespace AnomalyDetection.Api.Services
             int radius = (int)(3 * sigma);
             double twoSigmaSq = 2 * sigma * sigma;
 
-            // Build 1D kernel
             int kernelSize = 2 * radius + 1;
             var kernel = new double[kernelSize];
             double sum = 0;
@@ -216,7 +217,6 @@ namespace AnomalyDetection.Api.Services
             for (int i = 0; i < kernelSize; i++)
                 kernel[i] /= sum;
 
-            // Horizontal pass
             var temp = new float[size, size];
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
@@ -230,7 +230,6 @@ namespace AnomalyDetection.Api.Services
                     temp[y, x] = (float)val;
                 }
 
-            // Vertical pass
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
                 {
@@ -246,33 +245,70 @@ namespace AnomalyDetection.Api.Services
             return result;
         }
 
-        private static float Percentile(float[,] map, float percentile)
+        private static void ApplyMask(float[,] map, bool[,] mask)
         {
             int size = map.GetLength(0);
-            var flat = new float[size * size];
-            int idx = 0;
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
-                    flat[idx++] = map[y, x];
-
-            Array.Sort(flat);
-            float rank = (percentile / 100f) * (flat.Length - 1);
-            int lower = (int)rank;
-            int upper = Math.Min(lower + 1, flat.Length - 1);
-            float frac = rank - lower;
-            return flat[lower] + frac * (flat[upper] - flat[lower]);
+                    if (!mask[y, x])
+                        map[y, x] = 0f;
         }
 
-        private static string GenerateOverlayHeatmapBase64(float[,] map, Image<Rgb24> input)
+        private static float Percentile(float[,] map, bool[,] mask, float percentile)
         {
             int size = map.GetLength(0);
 
-            float max = float.MinValue;
+            var values = new List<float>(size * size);
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
-                    if (map[y, x] > max) max = map[y, x];
+                    if (mask[y, x])
+                        values.Add(map[y, x]);
 
-            float denom = max + 1e-8f;
+            if (values.Count == 0)
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                        values.Add(map[y, x]);
+
+            values.Sort();
+            float rank = (percentile / 100f) * (values.Count - 1);
+            int lower = (int)rank;
+            int upper = Math.Min(lower + 1, values.Count - 1);
+            float frac = rank - lower;
+            return values[lower] + frac * (values[upper] - values[lower]);
+        }
+
+        private static string GenerateOverlayHeatmapBase64(float[,] map, bool[,] mask, Image<Rgb24> input, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
+        {
+            int size = map.GetLength(0);
+
+            float lo, hi;
+            if (heatmapUseGlobalMax && !isAnomaly)
+            {
+                lo = 0f;
+                hi = scoreMax;
+            }
+            else
+            {
+                var mapValues = new List<float>(size * size);
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                        if (mask[y, x])
+                            mapValues.Add(map[y, x]);
+
+                if (mapValues.Count == 0)
+                {
+                    lo = scoreMin;
+                    hi = scoreMax;
+                }
+                else
+                {
+                    mapValues.Sort();
+                    int n = mapValues.Count;
+                    lo = mapValues[(int)(0.01f * (n - 1))];
+                    hi = mapValues[(int)(0.99f * (n - 1))];
+                }
+            }
+            float denom = (hi - lo) + 1e-8f;
 
             int width = Math.Min(input.Width, size);
             int height = Math.Min(input.Height, size);
@@ -287,7 +323,13 @@ namespace AnomalyDetection.Api.Services
                     Span<Rgb24> outRow = outAcc.GetRowSpan(y);
                     for (int x = 0; x < width; x++)
                     {
-                        float t = map[y, x] / denom;
+                        if (!mask[y, x])
+                        {
+                            outRow[x] = inRow[x];
+                            continue;
+                        }
+
+                        float t = (map[y, x] - lo) / denom;
                         if (t < 0f) t = 0f;
                         else if (t > 1f) t = 1f;
 
