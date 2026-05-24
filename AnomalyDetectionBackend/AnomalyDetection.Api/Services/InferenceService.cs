@@ -46,6 +46,8 @@ namespace AnomalyDetection.Api.Services
                 metadata.OptimalThreshold,
                 metadata.ScoreMin,
                 metadata.ScoreMax,
+                metadata.ApplyMask,
+                metadata.HeatmapUseGlobalMax,
                 returnHeatmap);
 
             _statisticsService.SaveInferenceResult(normalizedCategory, result.IsAnomaly, result.Score, result.UsedThreshold, userId, imageName);

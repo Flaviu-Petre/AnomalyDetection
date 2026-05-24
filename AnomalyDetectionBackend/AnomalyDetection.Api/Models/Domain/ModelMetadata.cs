@@ -30,6 +30,9 @@ namespace AnomalyDetection.Api.Models.Domain
         [JsonPropertyName("apply_mask")]
         public bool ApplyMask { get; set; }
 
+        [JsonPropertyName("heatmap_use_global_max")]
+        public bool HeatmapUseGlobalMax { get; set; } = true;
+
         [JsonPropertyName("image_auroc")]
         public float ImageAuroc { get; set; }
 
