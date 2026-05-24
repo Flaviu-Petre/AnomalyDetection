@@ -27,6 +27,8 @@ namespace AnomalyDetection.Api.Models.Domain
 
         [JsonPropertyName("score_max")]
         public float ScoreMax { get; set; }
+        [JsonPropertyName("apply_mask")]
+        public bool ApplyMask { get; set; }
 
         [JsonPropertyName("image_auroc")]
         public float ImageAuroc { get; set; }
