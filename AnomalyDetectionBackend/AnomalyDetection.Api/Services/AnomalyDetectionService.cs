@@ -238,40 +238,6 @@ namespace AnomalyDetection.Api.Services
             return values[lower] + frac * (values[upper] - values[lower]);
         }
 
-        private static (float Lo, float Hi) CalculateHeatmapBounds( float[,] map, bool[,] mask, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
-        {
-            if (heatmapUseGlobalMax && !isAnomaly)
-            {
-                return (0f, scoreMax);
-            }
-
-            int size = map.GetLength(0);
-            var mapValues = new List<float>(size * size);
-
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    if (mask[y, x])
-                    {
-                        mapValues.Add(map[y, x]);
-                    }
-                }
-            }
-
-            if (mapValues.Count == 0)
-            {
-                return (scoreMin, scoreMax);
-            }
-
-            mapValues.Sort();
-            int n = mapValues.Count;
-            float lo = mapValues[(int)(0.01f * (n - 1))];
-            float hi = mapValues[(int)(0.99f * (n - 1))];
-
-            return (lo, hi);
-        }
-
         private static string GenerateOverlayHeatmapBase64( float[,] map, bool[,] mask, Image<Rgb24> input, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
         {
             var (lo, hi) = CalculateHeatmapBounds(map, mask, scoreMin, scoreMax, heatmapUseGlobalMax, isAnomaly);
@@ -318,14 +284,6 @@ namespace AnomalyDetection.Api.Services
             output.SaveAsPng(ms);
             return Convert.ToBase64String(ms.ToArray());
         }
-
-        private static Rgb24 JetColormap(float t)
-        {
-            float r = Math.Clamp(1.5f - Math.Abs(4f * t - 3f), 0f, 1f);
-            float g = Math.Clamp(1.5f - Math.Abs(4f * t - 2f), 0f, 1f);
-            float b = Math.Clamp(1.5f - Math.Abs(4f * t - 1f), 0f, 1f);
-            return new Rgb24((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
-        }
         #endregion
 
         #region Private Helpers
@@ -355,6 +313,48 @@ namespace AnomalyDetection.Api.Services
                     result[i, j] = br.ReadSingle();
 
             return result;
+        }
+
+        private static (float Lo, float Hi) CalculateHeatmapBounds(float[,] map, bool[,] mask, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
+        {
+            if (heatmapUseGlobalMax && !isAnomaly)
+            {
+                return (0f, scoreMax);
+            }
+
+            int size = map.GetLength(0);
+            var mapValues = new List<float>(size * size);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    if (mask[y, x])
+                    {
+                        mapValues.Add(map[y, x]);
+                    }
+                }
+            }
+
+            if (mapValues.Count == 0)
+            {
+                return (scoreMin, scoreMax);
+            }
+
+            mapValues.Sort();
+            int n = mapValues.Count;
+            float lo = mapValues[(int)(0.01f * (n - 1))];
+            float hi = mapValues[(int)(0.99f * (n - 1))];
+
+            return (lo, hi);
+        }
+
+        private static Rgb24 JetColormap(float t)
+        {
+            float r = Math.Clamp(1.5f - Math.Abs(4f * t - 3f), 0f, 1f);
+            float g = Math.Clamp(1.5f - Math.Abs(4f * t - 2f), 0f, 1f);
+            float b = Math.Clamp(1.5f - Math.Abs(4f * t - 1f), 0f, 1f);
+            return new Rgb24((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
         }
         #endregion
     }
