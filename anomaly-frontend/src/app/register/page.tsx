@@ -56,7 +56,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg border border-gray-200">
         
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-blue-900">FactoryOS</h1>
+          <h1 className="text-3xl font-bold text-blue-900">Digital Eye</h1>
           <p className="mt-2 text-sm text-gray-500">
             Register New Personnel
           </p>

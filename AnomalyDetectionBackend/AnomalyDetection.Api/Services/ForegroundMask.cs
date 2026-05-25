@@ -8,9 +8,12 @@ namespace AnomalyDetection.Api.Services
 {
     internal static class ForegroundMask
     {
+        #region Constants
         private const int ClosingRadius = 5;
         private const int OpeningRadius = 2;
+        #endregion
 
+        #region Public Method
         public static bool[,] Compute(Image<Rgb24> image, bool applyMask)
         {
             int h = image.Height;
@@ -90,6 +93,9 @@ namespace AnomalyDetection.Api.Services
 
             return MatToBoolMask(componentMask, h, w);
         }
+        #endregion
+
+        #region Private Helper Methodes
 
         private static Mat ToGrayMat(Image<Rgb24> image)
         {
@@ -162,5 +168,6 @@ namespace AnomalyDetection.Api.Services
                     result[y, x] = mat.At<byte>(y, x) > 0;
             return result;
         }
+        #endregion
     }
 }
