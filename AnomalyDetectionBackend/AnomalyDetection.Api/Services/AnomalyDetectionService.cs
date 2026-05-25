@@ -1,9 +1,10 @@
-﻿using Microsoft.ML.OnnxRuntime;
+﻿using AnomalyDetection.Api.Models.Domain;
+using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using OpenCvSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using AnomalyDetection.Api.Models.Domain;
 using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
@@ -58,8 +59,7 @@ namespace AnomalyDetection.Api.Services
             var tensor = BuildInputTensor(image);
             float[,] feats = RunEncoder(tensor);
             float[,] scores = ComputePatchScores(feats);
-            float[,] map = UpsampleScoreMap(scores);
-            float[,] smooth = GaussianSmooth(map, GaussianSigma);
+            float[,] smooth = UpsampleAndSmooth(scores, ImageSize, GaussianSigma);
 
             bool[,] mask = ForegroundMask.Compute(image, applyMask);
             ApplyMask(smooth, mask);
@@ -181,66 +181,27 @@ namespace AnomalyDetection.Api.Services
             return scores;
         }
 
-        private static float[,] UpsampleScoreMap(float[,] scores)
+        private static float[,] UpsampleAndSmooth(float[,] scores, int targetSize, double sigma)
         {
-            var upsampled = new float[ImageSize, ImageSize];
-            float scaleH = (float)GridSize / ImageSize;
-            float scaleW = (float)GridSize / ImageSize;
+            int gridSize = scores.GetLength(0);
 
-            for (int y = 0; y < ImageSize; y++)
-                for (int x = 0; x < ImageSize; x++)
-                {
-                    int srcY = Math.Min((int)(y * scaleH), GridSize - 1);
-                    int srcX = Math.Min((int)(x * scaleW), GridSize - 1);
-                    upsampled[y, x] = scores[srcY, srcX];
-                }
+            using var smallMat = new Mat(gridSize, gridSize, MatType.CV_32FC1);
+            for (int y = 0; y < gridSize; y++)
+                for (int x = 0; x < gridSize; x++)
+                    smallMat.Set(y, x, scores[y, x]);
 
-            return upsampled;
-        }
+            using var resizedMat = new Mat();
+            Cv2.Resize(smallMat, resizedMat, new OpenCvSharp.Size(targetSize, targetSize), 0, 0, InterpolationFlags.Nearest);
 
-        private static float[,] GaussianSmooth(float[,] map, double sigma)
-        {
-            int size = map.GetLength(0);
-            var result = new float[size, size];
             int radius = (int)(3 * sigma);
-            double twoSigmaSq = 2 * sigma * sigma;
-
             int kernelSize = 2 * radius + 1;
-            var kernel = new double[kernelSize];
-            double sum = 0;
-            for (int i = 0; i < kernelSize; i++)
-            {
-                int x = i - radius;
-                kernel[i] = Math.Exp(-(x * x) / twoSigmaSq);
-                sum += kernel[i];
-            }
-            for (int i = 0; i < kernelSize; i++)
-                kernel[i] /= sum;
+            using var blurredMat = new Mat();
+            Cv2.GaussianBlur(resizedMat, blurredMat, new OpenCvSharp.Size(kernelSize, kernelSize), sigma, sigma);
 
-            var temp = new float[size, size];
-            for (int y = 0; y < size; y++)
-                for (int x = 0; x < size; x++)
-                {
-                    double val = 0;
-                    for (int k = 0; k < kernelSize; k++)
-                    {
-                        int sx = Math.Clamp(x + k - radius, 0, size - 1);
-                        val += map[y, sx] * kernel[k];
-                    }
-                    temp[y, x] = (float)val;
-                }
-
-            for (int y = 0; y < size; y++)
-                for (int x = 0; x < size; x++)
-                {
-                    double val = 0;
-                    for (int k = 0; k < kernelSize; k++)
-                    {
-                        int sy = Math.Clamp(y + k - radius, 0, size - 1);
-                        val += temp[sy, x] * kernel[k];
-                    }
-                    result[y, x] = (float)val;
-                }
+            var result = new float[targetSize, targetSize];
+            for (int y = 0; y < targetSize; y++)
+                for (int x = 0; x < targetSize; x++)
+                    result[y, x] = blurredMat.At<float>(y, x);
 
             return result;
         }
@@ -277,41 +238,47 @@ namespace AnomalyDetection.Api.Services
             return values[lower] + frac * (values[upper] - values[lower]);
         }
 
-        private static string GenerateOverlayHeatmapBase64(float[,] map, bool[,] mask, Image<Rgb24> input, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
+        private static (float Lo, float Hi) CalculateHeatmapBounds( float[,] map, bool[,] mask, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
         {
-            int size = map.GetLength(0);
-
-            float lo, hi;
             if (heatmapUseGlobalMax && !isAnomaly)
             {
-                lo = 0f;
-                hi = scoreMax;
+                return (0f, scoreMax);
             }
-            else
-            {
-                var mapValues = new List<float>(size * size);
-                for (int y = 0; y < size; y++)
-                    for (int x = 0; x < size; x++)
-                        if (mask[y, x])
-                            mapValues.Add(map[y, x]);
 
-                if (mapValues.Count == 0)
+            int size = map.GetLength(0);
+            var mapValues = new List<float>(size * size);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
                 {
-                    lo = scoreMin;
-                    hi = scoreMax;
-                }
-                else
-                {
-                    mapValues.Sort();
-                    int n = mapValues.Count;
-                    lo = mapValues[(int)(0.01f * (n - 1))];
-                    hi = mapValues[(int)(0.99f * (n - 1))];
+                    if (mask[y, x])
+                    {
+                        mapValues.Add(map[y, x]);
+                    }
                 }
             }
+
+            if (mapValues.Count == 0)
+            {
+                return (scoreMin, scoreMax);
+            }
+
+            mapValues.Sort();
+            int n = mapValues.Count;
+            float lo = mapValues[(int)(0.01f * (n - 1))];
+            float hi = mapValues[(int)(0.99f * (n - 1))];
+
+            return (lo, hi);
+        }
+
+        private static string GenerateOverlayHeatmapBase64( float[,] map, bool[,] mask, Image<Rgb24> input, float scoreMin, float scoreMax, bool heatmapUseGlobalMax, bool isAnomaly)
+        {
+            var (lo, hi) = CalculateHeatmapBounds(map, mask, scoreMin, scoreMax, heatmapUseGlobalMax, isAnomaly);
             float denom = (hi - lo) + 1e-8f;
 
-            int width = Math.Min(input.Width, size);
-            int height = Math.Min(input.Height, size);
+            int width = Math.Min(input.Width, map.GetLength(1));
+            int height = Math.Min(input.Height, map.GetLength(0));
 
             using var output = new Image<Rgb24>(width, height);
 
@@ -321,6 +288,7 @@ namespace AnomalyDetection.Api.Services
                 {
                     Span<Rgb24> inRow = inAcc.GetRowSpan(y);
                     Span<Rgb24> outRow = outAcc.GetRowSpan(y);
+
                     for (int x = 0; x < width; x++)
                     {
                         if (!mask[y, x])
@@ -329,20 +297,19 @@ namespace AnomalyDetection.Api.Services
                             continue;
                         }
 
-                        float t = (map[y, x] - lo) / denom;
-                        if (t < 0f) t = 0f;
-                        else if (t > 1f) t = 1f;
+                        float t = Math.Clamp((map[y, x] - lo) / denom, 0f, 1f);
 
                         Rgb24 jet = JetColormap(t);
 
-                        float r = OverlayImageWeight * (inRow[x].R / 255f) + OverlayHeatmapWeight * (jet.R / 255f);
-                        float g = OverlayImageWeight * (inRow[x].G / 255f) + OverlayHeatmapWeight * (jet.G / 255f);
-                        float b = OverlayImageWeight * (inRow[x].B / 255f) + OverlayHeatmapWeight * (jet.B / 255f);
+                        float r = (OverlayImageWeight * inRow[x].R) + (OverlayHeatmapWeight * jet.R);
+                        float g = (OverlayImageWeight * inRow[x].G) + (OverlayHeatmapWeight * jet.G);
+                        float b = (OverlayImageWeight * inRow[x].B) + (OverlayHeatmapWeight * jet.B);
 
                         outRow[x] = new Rgb24(
-                            (byte)Math.Clamp(r * 255f, 0f, 255f),
-                            (byte)Math.Clamp(g * 255f, 0f, 255f),
-                            (byte)Math.Clamp(b * 255f, 0f, 255f));
+                            (byte)Math.Clamp(r, 0f, 255f),
+                            (byte)Math.Clamp(g, 0f, 255f),
+                            (byte)Math.Clamp(b, 0f, 255f)
+                        );
                     }
                 }
             });
