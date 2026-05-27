@@ -8,6 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +26,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           username: username,
+           email: email,
           password: password,
         }),
       });
@@ -78,6 +80,19 @@ export default function LoginPage() {
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
