@@ -1,10 +1,11 @@
 ﻿using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Models.Entities;
+using AnomalyDetection.Api.Repositories.Interfaces;
 
 namespace AnomalyDetection.Api.Repositories
 {
-    public class StatisticsRepository
+    public class StatisticsRepository : IStatisticsRepository
     {
         #region Fields
         private readonly AppDbContext _db;

@@ -1,9 +1,10 @@
 ﻿using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models.Entities;
+using AnomalyDetection.Api.Repositories.Interfaces;
 
 namespace AnomalyDetection.Api.Repositories
 {
-    public class UserRepository
+    public class UserRepository : IUserRepository
     {
         #region Fields
         private readonly AppDbContext _db;

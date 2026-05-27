@@ -1,18 +1,20 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Repositories.Interfaces;
+using AnomalyDetection.Api.Services.Interfaces;
 using System.Data;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class StatisticsService
+    public class StatisticsService : IStatisticsService
     {
         #region Fields
-        private readonly StatisticsRepository _statisticsRepo;
+        private readonly IStatisticsRepository _statisticsRepo;
         #endregion
 
         #region Constructor
-        public StatisticsService(StatisticsRepository statisticsRepo)
+        public StatisticsService(IStatisticsRepository statisticsRepo)
         {
             _statisticsRepo = statisticsRepo ?? throw new ArgumentNullException(nameof(statisticsRepo));
         }

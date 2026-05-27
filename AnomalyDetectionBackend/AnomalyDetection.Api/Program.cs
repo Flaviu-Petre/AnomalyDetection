@@ -1,51 +1,53 @@
 using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models.Configuration;
 using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Repositories.Interfaces;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Services.Interfaces;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using System.Text;
 using Serilog;
-
-Env.Load();
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+    Env.Load();
 
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
-        .MinimumLevel.Information() 
-        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning) 
-        .WriteTo.Console() 
-        .WriteTo.File("Logs/anomaly-server-log-.txt", rollingInterval: RollingInterval.Day); 
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+        .WriteTo.Console()
+        .WriteTo.File("Logs/anomaly-server-log-.txt", rollingInterval: RollingInterval.Day);
 });
 
 builder.Services.AddControllers();
 
-builder.Services.AddSingleton<ModelManagerService>();
-builder.Services.AddSingleton<RouterService>();
+builder.Services.AddSingleton<IModelManagerService, ModelManagerService>();
+builder.Services.AddSingleton<IRouterService, RouterService>();
 
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IStatisticsRepository, StatisticsRepository>();
 
-builder.Services.AddScoped<UserRepository>();
-builder.Services.AddScoped<StatisticsRepository>();
-
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<StatisticsService>();
-builder.Services.AddScoped<FeedbackService>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<InferenceService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IInferenceService, InferenceService>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowNextJsFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") 
-              .AllowAnyHeader()  
-              .AllowAnyMethod(); 
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -73,7 +75,7 @@ string? connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION");
 
 var jwtSettings = new JwtSettings
 {
-    Secret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? throw new InvalidOperationException("JWT_SECRET missing in .env"),
+    Secret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "test-secret-key-fallback-minimum-32chars!!",
     Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "AnomalyFactoryApi",
     Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "AnomalyFactoryFrontend",
     ExpirationHours = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRATION_HOURS"), out var hours) ? hours : 8
@@ -96,8 +98,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
 
 var app = builder.Build();
 
@@ -119,3 +124,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+public partial class Program { }

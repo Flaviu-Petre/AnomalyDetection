@@ -1,5 +1,6 @@
 ﻿using AnomalyDetection.Api.Extensions;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +12,12 @@ namespace AnomalyDetection.Api.Controllers
     public class StatisticsController : ControllerBase
     {
         #region Fields
-        private readonly StatisticsService _statisticsService;
+        private readonly IStatisticsService _statisticsService;
         private readonly ILogger<StatisticsController> _logger;
         #endregion
 
         #region Constructor
-        public StatisticsController(StatisticsService statisticsService, ILogger<StatisticsController> logger)
+        public StatisticsController(IStatisticsService statisticsService, ILogger<StatisticsController> logger)
         {
             _statisticsService = statisticsService;
             _logger = logger;

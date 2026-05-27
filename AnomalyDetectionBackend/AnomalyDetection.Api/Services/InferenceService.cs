@@ -1,18 +1,19 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
+using AnomalyDetection.Api.Services.Interfaces;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class InferenceService
+    public class InferenceService : IInferenceService
     {
         #region Fields
-        private readonly ModelManagerService _modelManager;
-        private readonly StatisticsService _statisticsService;
-        private readonly RouterService _routerService;
+        private readonly IModelManagerService _modelManager;
+        private readonly IStatisticsService _statisticsService;
+        private readonly IRouterService _routerService;
         private readonly ILogger<InferenceService> _logger;
         #endregion
 
         #region Constructor
-        public InferenceService(ModelManagerService modelManager, StatisticsService statisticsService, RouterService routerService, ILogger<InferenceService> logger)
+        public InferenceService(IModelManagerService modelManager, IStatisticsService statisticsService, IRouterService routerService, ILogger<InferenceService> logger)
         {
             _modelManager = modelManager;
             _statisticsService = statisticsService;

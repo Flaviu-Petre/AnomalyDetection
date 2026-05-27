@@ -1,4 +1,5 @@
 ﻿using AnomalyDetection.Api.Models.Domain;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
@@ -9,7 +10,7 @@ using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class AnomalyDetectionService : IDisposable
+    public class AnomalyDetectionService : IAnomalyDetectionService
     {
         #region Constants
         private const int ImageSize = 224;
