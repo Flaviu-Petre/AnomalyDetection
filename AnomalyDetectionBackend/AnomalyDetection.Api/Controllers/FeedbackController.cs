@@ -1,5 +1,6 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AnomalyDetection.Api.Controllers
@@ -22,7 +23,9 @@ namespace AnomalyDetection.Api.Controllers
         #endregion
 
         #region Endpoints
+
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> SubmitFeedback([FromForm] FeedbackRequest request)
         {
             try
@@ -45,9 +48,8 @@ namespace AnomalyDetection.Api.Controllers
                     request.Image
                 );
 
-                _logger.LogInformation("[FEEDBACK] Successfully saved user feedback for category '{Category}'. Marked as Anomaly: {IsAnomaly}",
-                    request.Category,
-                    request.IsActuallyAnomaly);
+                _logger.LogInformation("[FEEDBACK] Saved feedback for category '{Category}'. Marked as Anomaly: {IsAnomaly}",
+                    request.Category, request.IsActuallyAnomaly);
 
                 return Ok(new
                 {
@@ -61,6 +63,71 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, "An unexpected internal server error occurred while saving feedback.");
             }
         }
+
+        [HttpGet("summary")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult GetFeedbackSummary()
+        {
+            try
+            {
+                var summary = _feedbackService.GetFeedbackSummary();
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to retrieve feedback summary.");
+                return StatusCode(500, "An unexpected internal server error occurred while retrieving the feedback summary.");
+            }
+        }
+
+        [HttpGet("images/{category}/{label}")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult GetFeedbackImageList(string category, string label)
+        {
+            if (label != "anomaly" && label != "good")
+                return BadRequest("Label must be 'anomaly' or 'good'.");
+
+            try
+            {
+                var files = _feedbackService.GetFeedbackImageNames(category, label);
+                return Ok(files);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to list feedback images for '{Category}/{Label}'.", category, label);
+                return StatusCode(500, "An unexpected internal server error occurred.");
+            }
+        }
+
+        [HttpGet("images/{category}/{label}/{filename}")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult GetFeedbackImage(string category, string label, string filename)
+        {
+            if (label != "anomaly" && label != "good")
+                return BadRequest("Label must be 'anomaly' or 'good'.");
+
+            if (filename.Contains("..") || filename.Contains("/") || filename.Contains("\\"))
+            {
+                _logger.LogWarning("[SECURITY] Path traversal attempt blocked for filename: {Filename}", filename);
+                return BadRequest("Invalid filename.");
+            }
+
+            try
+            {
+                var (stream, contentType) = _feedbackService.GetFeedbackImageStream(category, label, filename);
+                return File(stream, contentType);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound($"Image '{filename}' not found.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] Failed to serve feedback image '{Filename}'.", filename);
+                return StatusCode(500, "An unexpected internal server error occurred.");
+            }
+        }
+
         #endregion
     }
 }

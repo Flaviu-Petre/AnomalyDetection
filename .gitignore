@@ -408,3 +408,5 @@ AnomalyDetectionBackend/AnomalyDetection.Api/Router/
 
 # Environment
 AnomalyDetectionBackend/AnomalyDetection.Api/.env
+
+AnomalyDetectionBackend/AnomalyDetection.Api/FeedbackData/

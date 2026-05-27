@@ -44,6 +44,72 @@
 
             return fullFilePath;
         }
+
+        public List<object> GetFeedbackSummary()
+        {
+            var result = new List<object>();
+            string basePath = Path.Combine(Directory.GetCurrentDirectory(), _baseFeedbackDirectory);
+
+            if (!Directory.Exists(basePath))
+                return result;
+
+            foreach (var categoryDir in Directory.GetDirectories(basePath))
+            {
+                string categoryName = Path.GetFileName(categoryDir);
+                int anomalyCount = CountFiles(Path.Combine(categoryDir, "anomaly"));
+                int goodCount = CountFiles(Path.Combine(categoryDir, "good"));
+
+                if (anomalyCount == 0 && goodCount == 0)
+                    continue;
+
+                result.Add(new
+                {
+                    Category = categoryName,
+                    AnomalyCount = anomalyCount,
+                    GoodCount = goodCount
+                });
+            }
+
+            return result;
+        }
+
+        public List<string> GetFeedbackImageNames(string category, string label)
+        {
+            string dirPath = Path.Combine(Directory.GetCurrentDirectory(), _baseFeedbackDirectory,
+                category.ToLower().Trim(), label);
+
+            if (!Directory.Exists(dirPath))
+                return new List<string>();
+
+            return Directory.GetFiles(dirPath)
+                .Select(Path.GetFileName)
+                .Where(f => f != null)
+                .ToList()!;
+        }
+
+        public (Stream stream, string contentType) GetFeedbackImageStream(string category, string label, string filename)
+        {
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), _baseFeedbackDirectory,
+                category.ToLower().Trim(), label, filename);
+
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException();
+
+            string ext = Path.GetExtension(filename).ToLower();
+            string contentType = ext switch
+            {
+                ".png" => "image/png",
+                ".jpg" => "image/jpeg",
+                ".jpeg" => "image/jpeg",
+                ".bmp" => "image/bmp",
+                _ => "application/octet-stream"
+            };
+
+            return (File.OpenRead(filePath), contentType);
+        }
+
+        private int CountFiles(string dirPath) =>
+            Directory.Exists(dirPath) ? Directory.GetFiles(dirPath).Length : 0;
         #endregion
     }
 }

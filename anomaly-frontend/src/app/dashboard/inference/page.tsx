@@ -96,7 +96,7 @@ export default function InferencePage() {
 
       if (response.ok) {
         setFeedbackSubmitted(true);
-        setFeedbackMessage("Thank you! Feedback saved for model retraining.");
+        setFeedbackMessage("Thank you! Feedback saved.");
       } else {
         setFeedbackMessage("Failed to submit feedback. Please try again.");
       }
