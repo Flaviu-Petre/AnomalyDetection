@@ -1,6 +1,7 @@
 ﻿using AnomalyDetection.Api.Extensions;
 using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +12,12 @@ namespace AnomalyDetection.Api.Controllers
     public class InferenceController : ControllerBase
     {
         #region Fields
-        private readonly InferenceService _inferenceService;
+        private readonly IInferenceService _inferenceService;
         private readonly ILogger<InferenceController> _logger;
         #endregion
 
         #region Constructor
-        public InferenceController(InferenceService inferenceService, ILogger<InferenceController> logger)
+        public InferenceController(IInferenceService inferenceService, ILogger<InferenceController> logger)
         {
             _inferenceService = inferenceService;
             _logger = logger;

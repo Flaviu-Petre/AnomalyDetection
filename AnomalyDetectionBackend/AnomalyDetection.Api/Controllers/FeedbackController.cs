@@ -1,5 +1,6 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,12 +11,12 @@ namespace AnomalyDetection.Api.Controllers
     public class FeedbackController : ControllerBase
     {
         #region Fields
-        private readonly FeedbackService _feedbackService;
+        private readonly IFeedbackService _feedbackService;
         private readonly ILogger<FeedbackController> _logger;
         #endregion
 
         #region Constructor
-        public FeedbackController(FeedbackService feedbackService, ILogger<FeedbackController> logger)
+        public FeedbackController(IFeedbackService feedbackService, ILogger<FeedbackController> logger)
         {
             _feedbackService = feedbackService;
             _logger = logger;

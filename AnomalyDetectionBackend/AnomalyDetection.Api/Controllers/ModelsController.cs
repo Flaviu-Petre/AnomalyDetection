@@ -1,5 +1,6 @@
 ﻿using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Services;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,12 +12,12 @@ namespace AnomalyDetection.Api.Controllers
     public class ModelsController : ControllerBase
     {
         #region Fields
-        private readonly ModelManagerService _modelManager;
+        private readonly IModelManagerService _modelManager;
         private readonly ILogger<ModelsController> _logger;
         #endregion
 
         #region Constructor
-        public ModelsController(ModelManagerService modelManager, ILogger<ModelsController> logger)
+        public ModelsController(IModelManagerService modelManager, ILogger<ModelsController> logger)
         {
             _modelManager = modelManager;
             _logger = logger;
