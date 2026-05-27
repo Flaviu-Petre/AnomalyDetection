@@ -53,23 +53,25 @@ namespace AnomalyDetection.Api.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
+            var identifier = request.Email ?? request.Username ?? "unknown";
+
             try
             {
-                var response = _authService.Login(request.Username, request.Password);
+                var response = _authService.Login(request.Username, request.Email, request.Password);
 
                 if (response == null)
                 {
-                    _logger.LogWarning("[AUTH] Failed login attempt for username: '{Username}'", request.Username);
+                    _logger.LogWarning("[AUTH] Failed login attempt for: '{Identifier}'", identifier);
                     return Unauthorized("Invalid username or password.");
                 }
 
-                _logger.LogInformation("[AUTH] User logged in successfully: '{Username}' (Role: {Role})", request.Username, response.Role);
+                _logger.LogInformation("[AUTH] User logged in successfully: '{Identifier}' (Role: {Role})", identifier, response.Role);
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred during login for username '{Username}'.", request.Username);
+                _logger.LogError(ex, "[CRITICAL ERROR] An unexpected error occurred during login for: '{Identifier}'.", identifier);
                 return StatusCode(500, "An unexpected internal server error occurred during login.");
             }
         }

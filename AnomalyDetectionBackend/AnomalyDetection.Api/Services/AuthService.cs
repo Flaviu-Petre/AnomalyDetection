@@ -58,14 +58,18 @@ namespace AnomalyDetection.Api.Services
             _userRepo.AddUser(newUser);
         }
 
-        public LoginResponse? Login(string username, string rawPassword)
+        public LoginResponse? Login(string? username, string? email, string rawPassword)
         {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email))
+                return null;
+
             var user = _userRepo.GetUserByUsername(username);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(rawPassword, user.PasswordHash))
-            {
+            if (user == null || user.Email != email)
                 return null;
-            }
+
+            if (!BCrypt.Net.BCrypt.Verify(rawPassword, user.PasswordHash))
+                return null;
 
             var token = GenerateJwtToken(user.Id, user.Username, user.Role);
 
