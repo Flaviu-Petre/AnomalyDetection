@@ -64,6 +64,9 @@ export default function DashboardLayout({
               <Link href="/dashboard/users" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/users' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
                 Manage users
               </Link>
+              <Link href="/dashboard/feedback" className={`block px-4 py-2 rounded-md transition-colors ${pathname === '/dashboard/feedback' ? 'bg-blue-800 font-medium' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`}>
+                Feedback data
+              </Link>
             </>
           )}
         </nav>
@@ -88,7 +91,8 @@ export default function DashboardLayout({
               pathname === '/dashboard/inference' ? 'Run inference' :
                 pathname === '/dashboard/history' ? 'Inference history' :
                   pathname === '/dashboard/models' ? 'Model manager' :
-                    pathname === '/dashboard/users' ? 'User management' : ''}
+                    pathname === '/dashboard/users' ? 'User management' :
+                      pathname === '/dashboard/feedback' ? 'Feedback data' : ''}
           </h2>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">
