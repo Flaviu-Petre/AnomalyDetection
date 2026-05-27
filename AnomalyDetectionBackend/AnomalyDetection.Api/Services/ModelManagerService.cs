@@ -1,11 +1,12 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
+﻿using AnomalyDetection.Api.Models.Domain;
 using AnomalyDetection.Api.Models.DTOs;
-using AnomalyDetection.Api.Models.Domain;
+using AnomalyDetection.Api.Services.Interfaces;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class ModelManagerService
+    public class ModelManagerService : IModelManagerService
     {
         #region Constants
         private const string EncoderPath = "PatchCore/Encoder/patchcore_model.onnx";
@@ -14,7 +15,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Fields
-        private readonly ConcurrentDictionary<string, AnomalyDetectionService> _activeServices = new();
+        private readonly ConcurrentDictionary<string, IAnomalyDetectionService> _activeServices = new();
         private readonly ConcurrentDictionary<string, ModelMetadata> _metadataCache = new();
         private readonly ILogger<ModelManagerService> _logger;
         private readonly ILogger<AnomalyDetectionService> _anomalyLogger;
@@ -32,7 +33,7 @@ namespace AnomalyDetection.Api.Services
         #endregion
 
         #region Public Methods
-        public (AnomalyDetectionService Service, ModelMetadata Metadata) GetModelForCategory(string category)
+        public (IAnomalyDetectionService Service, ModelMetadata Metadata) GetModelForCategory(string category)
         {
             category = category.ToLower();
 

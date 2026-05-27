@@ -1,6 +1,8 @@
-﻿namespace AnomalyDetection.Api.Services
+﻿using AnomalyDetection.Api.Services.Interfaces;
+
+namespace AnomalyDetection.Api.Services
 {
-    public class FeedbackService
+    public class FeedbackService : IFeedbackService
     {
         #region Fields
         private readonly string _baseFeedbackDirectory = "FeedbackData";

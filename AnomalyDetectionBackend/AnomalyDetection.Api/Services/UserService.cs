@@ -1,16 +1,18 @@
 ﻿using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Repositories.Interfaces;
+using AnomalyDetection.Api.Services.Interfaces;
 using System;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class UserService
+    public class UserService : IUserService
     {
         #region Fields
-        private readonly UserRepository _userRepo;
+        private readonly IUserRepository _userRepo;
         #endregion
 
         #region Constructor
-        public UserService(UserRepository userRepo)
+        public UserService(IUserRepository userRepo)
         {
             _userRepo = userRepo;
         }

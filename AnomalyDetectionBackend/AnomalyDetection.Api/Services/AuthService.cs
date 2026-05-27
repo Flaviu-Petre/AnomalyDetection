@@ -2,6 +2,8 @@
 using AnomalyDetection.Api.Models.DTOs;
 using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories;
+using AnomalyDetection.Api.Repositories.Interfaces;
+using AnomalyDetection.Api.Services.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel.DataAnnotations;
@@ -11,15 +13,15 @@ using System.Text;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class AuthService
+    public class AuthService : IAuthService
     {
         #region Fields
-        private readonly UserRepository _userRepo;
+        private readonly IUserRepository _userRepo;
         private readonly JwtSettings _jwtSettings;
         #endregion
 
         #region Constructor
-        public AuthService(UserRepository userRepo, IOptions<JwtSettings> jwtSettings)
+        public AuthService(IUserRepository userRepo, IOptions<JwtSettings> jwtSettings)
         {
             _userRepo = userRepo;
             _jwtSettings = jwtSettings.Value;

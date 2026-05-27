@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.OnnxRuntime;
+﻿using AnomalyDetection.Api.Services.Interfaces;
+using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -8,7 +9,7 @@ using Size = SixLabors.ImageSharp.Size;
 
 namespace AnomalyDetection.Api.Services
 {
-    public class RouterService : IDisposable
+    public class RouterService : IRouterService
     {
         #region Constants
         private static readonly float[] ClipMean = { 0.48145466f, 0.4578275f, 0.40821073f };
