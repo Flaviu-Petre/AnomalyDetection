@@ -1,6 +1,7 @@
 ﻿using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AnomalyDetection.Api.Repositories
 {
@@ -66,8 +67,13 @@ namespace AnomalyDetection.Api.Repositories
 
         public void UpdateUser(User user)
         {
-            _db.Users.Update(user);
+            var entry = _db.Entry(user);
+            if (entry.State == EntityState.Detached)
+            {
+                _db.Users.Update(user);
+            }
             _db.SaveChanges();
+
         }
         #endregion
 

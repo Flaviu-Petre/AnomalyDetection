@@ -76,6 +76,52 @@ namespace AnomalyDetection.Api.Controllers
                 return StatusCode(500, "An unexpected internal server error occurred during login.");
             }
         }
+
+        [HttpPost("forgot-password")]
+        public IActionResult ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Email))
+                    return BadRequest("Email address is required.");
+
+                var result = _authService.ForgotPassword(request.Email);
+
+                _logger.LogInformation("[AUTH] Password reset requested for email: '{Email}'", request.Email);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] Unexpected error during forgot-password for '{Email}'.", request.Email);
+                return StatusCode(500, "An unexpected internal server error occurred.");
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+                    return BadRequest("Token and new password are required.");
+
+                var success = _authService.ResetPassword(request.Token, request.NewPassword);
+
+                if (!success)
+                {
+                    _logger.LogWarning("[AUTH] Failed password reset attempt with token: '{Token}'", request.Token[..8] + "...");
+                    return BadRequest("Invalid or expired reset token.");
+                }
+
+                _logger.LogInformation("[AUTH] Password reset successfully for token: '{Token}'", request.Token[..8] + "...");
+                return Ok("Password reset successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CRITICAL ERROR] Unexpected error during reset-password.");
+                return StatusCode(500, "An unexpected internal server error occurred.");
+            }
+        }
         #endregion
     }
 }
