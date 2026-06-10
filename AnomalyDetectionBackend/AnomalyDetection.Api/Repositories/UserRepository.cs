@@ -34,6 +34,11 @@ namespace AnomalyDetection.Api.Repositories
             return _db.Users.FirstOrDefault(u => u.Id == userId);
         }
 
+        public User? GetUserByResetToken(string token)
+        {
+            return _db.Users.FirstOrDefault(u => u.PasswordResetToken == token);
+        }
+
         public List<User> GetAllUsers()
         {
             return _db.Users

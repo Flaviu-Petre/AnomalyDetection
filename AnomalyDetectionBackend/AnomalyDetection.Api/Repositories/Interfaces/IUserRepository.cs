@@ -7,6 +7,7 @@ namespace AnomalyDetection.Api.Repositories.Interfaces
         User? GetUserByUsername(string username);
         User? GetUserByEmail(string email);
         User? GetUserById(int userId);
+        User? GetUserByResetToken(string token);
         List<User> GetAllUsers();
         void AddUser(User user);
         void UpdateUserRole(int userId, string newRole);
