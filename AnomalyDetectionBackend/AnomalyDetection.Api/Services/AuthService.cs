@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace AnomalyDetection.Api.Services
@@ -81,6 +82,49 @@ namespace AnomalyDetection.Api.Services
                 Role = user.Role,
                 Expiration = token.ValidTo
             };
+        }
+
+        public ForgotPasswordResponse ForgotPassword(string email)
+        {
+            var user = _userRepo.GetUserByEmail(email);
+
+            if (user == null)
+            {
+                return new ForgotPasswordResponse
+                {
+                    Message = "If this email is registered, a reset token has been generated."
+                };
+            }
+
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
+            user.PasswordResetToken = token;
+            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+            _userRepo.UpdateUser(user);
+
+            return new ForgotPasswordResponse
+            {
+                Message = "Password reset token generated successfully.",
+                ResetToken = token
+            };
+        }
+
+        public bool ResetPassword(string token, string newPassword)
+        {
+            var user = _userRepo.GetUserByResetToken(token);
+
+            if (user == null)
+                return false;
+
+            if (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+                return false;
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiry = null;
+            _userRepo.UpdateUser(user);
+
+            return true;
         }
 
         #endregion
