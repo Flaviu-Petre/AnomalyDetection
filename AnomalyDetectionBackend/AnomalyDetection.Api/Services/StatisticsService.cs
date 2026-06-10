@@ -71,11 +71,35 @@ namespace AnomalyDetection.Api.Services
             };
         }
 
-        public PagedResult<InferenceHistoryDto> GetInferenceHistory(int userId, string role, int pageNumber, int pageSize, string sortBy, bool sortDescending)
+        public PagedResult<InferenceHistoryDto> GetInferenceHistory(
+            int userId,
+            string role,
+            int pageNumber,
+            int pageSize,
+            string sortBy,
+            bool sortDescending,
+            bool? isAnomaly = null,
+            string? category = null,
+            string? filterUsername = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo = null)
         {
             var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
-            int? filterUserId = role == "Admin" ? null : userId;
-            return _statisticsRepo.GetPagedHistory(thirtyDaysAgo, filterUserId, pageNumber, pageSize, sortBy, sortDescending);
+
+            int? resolvedUserId = role == "Admin" ? null : userId;
+
+            return _statisticsRepo.GetPagedHistory(
+                thirtyDaysAgo,
+                resolvedUserId,
+                pageNumber,
+                pageSize,
+                sortBy,
+                sortDescending,
+                isAnomaly,
+                category,
+                role == "Admin" ? filterUsername : null,
+                dateFrom,
+                dateTo);
         }
         #endregion
     }
