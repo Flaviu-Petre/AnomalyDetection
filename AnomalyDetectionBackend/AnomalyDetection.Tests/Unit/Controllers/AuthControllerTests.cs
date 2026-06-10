@@ -259,5 +259,208 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             response.Role.Should().Be("Admin");
         }
         #endregion
+
+        #region ForgotPassword Tests
+        [Fact]
+        public void ForgotPassword_ReturnsOk_WhenEmailExists()
+        {
+            // Arrange
+            var forgotResponse = new ForgotPasswordResponse
+            {
+                Message = "Password reset token generated successfully.",
+                ResetToken = "abc123token"
+            };
+            _mockAuthService.Setup(s => s.ForgotPassword("name@test.com"))
+                            .Returns(forgotResponse);
+
+            var request = new ForgotPasswordRequest { Email = "name@test.com" };
+
+            // Act
+            var result = _controller.ForgotPassword(request);
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>()
+                  .Which.Value.Should().Be(forgotResponse);
+        }
+
+        [Fact]
+        public void ForgotPassword_ReturnsOk_WhenEmailDoesNotExist()
+        {
+            // Arrange
+            var forgotResponse = new ForgotPasswordResponse
+            {
+                Message = "If this email is registered, a reset token has been generated.",
+                ResetToken = null
+            };
+            _mockAuthService.Setup(s => s.ForgotPassword("unknown@test.com"))
+                            .Returns(forgotResponse);
+
+            var request = new ForgotPasswordRequest { Email = "unknown@test.com" };
+
+            // Act
+            var result = _controller.ForgotPassword(request);
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>();
+        }
+
+        [Fact]
+        public void ForgotPassword_ReturnsBadRequest_WhenEmailIsEmpty()
+        {
+            // Arrange
+            var request = new ForgotPasswordRequest { Email = "" };
+
+            // Act
+            var result = _controller.ForgotPassword(request);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
+        [Fact]
+        public void ForgotPassword_DoesNotCallService_WhenEmailIsEmpty()
+        {
+            // Arrange
+            var request = new ForgotPasswordRequest { Email = "" };
+
+            // Act
+            _controller.ForgotPassword(request);
+
+            // Assert
+            _mockAuthService.Verify(s => s.ForgotPassword(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public void ForgotPassword_Returns500_WhenUnexpectedExceptionIsThrown()
+        {
+            // Arrange
+            _mockAuthService.Setup(s => s.ForgotPassword(It.IsAny<string>()))
+                            .Throws(new Exception("Unexpected DB error"));
+
+            var request = new ForgotPasswordRequest { Email = "name@test.com" };
+
+            // Act
+            var result = _controller.ForgotPassword(request);
+
+            // Assert
+            result.Should().BeOfType<ObjectResult>()
+                  .Which.StatusCode.Should().Be(500);
+        }
+        #endregion
+
+        #region ResetPassword Tests
+        [Fact]
+        public void ResetPassword_ReturnsOk_WhenTokenAndPasswordAreValid()
+        {
+            // Arrange
+            _mockAuthService.Setup(s => s.ResetPassword("valid-token", "NewPassword123!"))
+                            .Returns(true);
+
+            var request = new ResetPasswordRequest
+            {
+                Token = "valid-token",
+                NewPassword = "NewPassword123!"
+            };
+
+            // Act
+            var result = _controller.ResetPassword(request);
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>();
+        }
+
+        [Fact]
+        public void ResetPassword_ReturnsBadRequest_WhenTokenIsInvalidOrExpired()
+        {
+            // Arrange
+            _mockAuthService.Setup(s => s.ResetPassword("bad-token", "NewPassword123!"))
+                            .Returns(false);
+
+            var request = new ResetPasswordRequest
+            {
+                Token = "bad-token",
+                NewPassword = "NewPassword123!"
+            };
+
+            // Act
+            var result = _controller.ResetPassword(request);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>()
+                  .Which.Value.Should().Be("Invalid or expired reset token.");
+        }
+
+        [Fact]
+        public void ResetPassword_ReturnsBadRequest_WhenTokenIsEmpty()
+        {
+            // Arrange
+            var request = new ResetPasswordRequest
+            {
+                Token = "",
+                NewPassword = "NewPassword123!"
+            };
+
+            // Act
+            var result = _controller.ResetPassword(request);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
+        [Fact]
+        public void ResetPassword_ReturnsBadRequest_WhenPasswordIsEmpty()
+        {
+            // Arrange
+            var request = new ResetPasswordRequest
+            {
+                Token = "valid-token",
+                NewPassword = ""
+            };
+
+            // Act
+            var result = _controller.ResetPassword(request);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
+        [Fact]
+        public void ResetPassword_DoesNotCallService_WhenTokenIsEmpty()
+        {
+            // Arrange
+            var request = new ResetPasswordRequest
+            {
+                Token = "",
+                NewPassword = "NewPassword123!"
+            };
+
+            // Act
+            _controller.ResetPassword(request);
+
+            // Assert
+            _mockAuthService.Verify(s => s.ResetPassword(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public void ResetPassword_Returns500_WhenUnexpectedExceptionIsThrown()
+        {
+            // Arrange
+            _mockAuthService.Setup(s => s.ResetPassword(It.IsAny<string>(), It.IsAny<string>()))
+                            .Throws(new Exception("Unexpected DB error"));
+
+            var request = new ResetPasswordRequest
+            {
+                Token = "valid-token",
+                NewPassword = "NewPassword123!"
+            };
+
+            // Act
+            var result = _controller.ResetPassword(request);
+
+            // Assert
+            result.Should().BeOfType<ObjectResult>()
+                  .Which.StatusCode.Should().Be(500);
+        }
+        #endregion
     }
 }

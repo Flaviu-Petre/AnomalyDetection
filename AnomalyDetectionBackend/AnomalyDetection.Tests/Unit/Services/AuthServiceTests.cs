@@ -272,5 +272,260 @@ namespace AnomalyDetection.Tests.Unit.Services
             result!.Role.Should().Be("Admin");
         }
         #endregion
+
+        #region ForgotPassword Tests
+        [Fact]
+        public void ForgotPassword_ReturnsMessageWithoutToken_WhenEmailNotFound()
+        {
+            // Arrange
+            _mockUserRepo.Setup(r => r.GetUserByEmail("unknown@test.com")).Returns((User?)null);
+
+            // Act
+            var result = _authService.ForgotPassword("unknown@test.com");
+
+            // Assert
+            result.Should().NotBeNull();
+            result.ResetToken.Should().BeNull();
+            result.Message.Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public void ForgotPassword_DoesNotCallUpdateUser_WhenEmailNotFound()
+        {
+            // Arrange
+            _mockUserRepo.Setup(r => r.GetUserByEmail("unknown@test.com")).Returns((User?)null);
+
+            // Act
+            _authService.ForgotPassword("unknown@test.com");
+
+            // Assert
+            _mockUserRepo.Verify(r => r.UpdateUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Fact]
+        public void ForgotPassword_ReturnsTokenAndMessage_WhenEmailExists()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                Role = "User"
+            };
+            _mockUserRepo.Setup(r => r.GetUserByEmail("name@test.com")).Returns(user);
+
+            // Act
+            var result = _authService.ForgotPassword("name@test.com");
+
+            // Assert
+            result.Should().NotBeNull();
+            result.ResetToken.Should().NotBeNullOrEmpty();
+            result.Message.Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public void ForgotPassword_SetsTokenAndExpiry_OnUser_WhenEmailExists()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                Role = "User"
+            };
+            _mockUserRepo.Setup(r => r.GetUserByEmail("name@test.com")).Returns(user);
+
+            var before = DateTime.UtcNow;
+
+            // Act
+            _authService.ForgotPassword("name@test.com");
+
+            // Assert
+            user.PasswordResetToken.Should().NotBeNullOrEmpty();
+            user.PasswordResetTokenExpiry.Should().NotBeNull();
+            user.PasswordResetTokenExpiry.Should().BeAfter(before);
+        }
+
+        [Fact]
+        public void ForgotPassword_CallsUpdateUser_WhenEmailExists()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
+                Role = "User"
+            };
+            _mockUserRepo.Setup(r => r.GetUserByEmail("name@test.com")).Returns(user);
+
+            // Act
+            _authService.ForgotPassword("name@test.com");
+
+            // Assert
+            _mockUserRepo.Verify(r => r.UpdateUser(user), Times.Once);
+        }
+        #endregion
+
+        #region ResetPassword Tests
+        [Fact]
+        public void ResetPassword_ReturnsFalse_WhenTokenNotFound()
+        {
+            // Arrange
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("invalid-token")).Returns((User?)null);
+
+            // Act
+            var result = _authService.ResetPassword("invalid-token", "NewPassword123!");
+
+            // Assert
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public void ResetPassword_ReturnsFalse_WhenTokenIsExpired()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "expired-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(-1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("expired-token")).Returns(user);
+
+            // Act
+            var result = _authService.ResetPassword("expired-token", "NewPassword123!");
+
+            // Assert
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public void ResetPassword_DoesNotCallUpdateUser_WhenTokenIsExpired()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "expired-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(-1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("expired-token")).Returns(user);
+
+            // Act
+            _authService.ResetPassword("expired-token", "NewPassword123!");
+
+            // Assert
+            _mockUserRepo.Verify(r => r.UpdateUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Fact]
+        public void ResetPassword_ReturnsTrue_WhenTokenIsValid()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "valid-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("valid-token")).Returns(user);
+
+            // Act
+            var result = _authService.ResetPassword("valid-token", "NewPassword123!");
+
+            // Assert
+            result.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ResetPassword_HashesNewPassword_WhenTokenIsValid()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "valid-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("valid-token")).Returns(user);
+
+            // Act
+            _authService.ResetPassword("valid-token", "NewPassword123!");
+
+            // Assert
+            user.PasswordHash.Should().NotBe("NewPassword123!");
+            user.PasswordHash.Should().StartWith("$2");
+            BCrypt.Net.BCrypt.Verify("NewPassword123!", user.PasswordHash).Should().BeTrue();
+        }
+
+        [Fact]
+        public void ResetPassword_ClearsTokenAndExpiry_WhenTokenIsValid()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "valid-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("valid-token")).Returns(user);
+
+            // Act
+            _authService.ResetPassword("valid-token", "NewPassword123!");
+
+            // Assert
+            user.PasswordResetToken.Should().BeNull();
+            user.PasswordResetTokenExpiry.Should().BeNull();
+        }
+
+        [Fact]
+        public void ResetPassword_CallsUpdateUser_WhenTokenIsValid()
+        {
+            // Arrange
+            var user = new User
+            {
+                Id = 1,
+                Username = "name",
+                Email = "name@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPassword123!"),
+                Role = "User",
+                PasswordResetToken = "valid-token",
+                PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1)
+            };
+            _mockUserRepo.Setup(r => r.GetUserByResetToken("valid-token")).Returns(user);
+
+            // Act
+            _authService.ResetPassword("valid-token", "NewPassword123!");
+
+            // Assert
+            _mockUserRepo.Verify(r => r.UpdateUser(user), Times.Once);
+        }
+        #endregion
     }
 }

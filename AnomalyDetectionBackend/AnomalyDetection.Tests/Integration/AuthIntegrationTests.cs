@@ -102,6 +102,17 @@ namespace AnomalyDetection.Tests.Integration
             var json = JsonSerializer.Deserialize<JsonElement>(body);
             return json.GetProperty("token").GetString()!;
         }
+        private async Task<string> GetResetTokenAsync(string email)
+        {
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = email
+            }));
+
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+            return json.GetProperty("resetToken").GetString()!;
+        }
         #endregion
 
         #region Register Tests
@@ -403,6 +414,312 @@ namespace AnomalyDetection.Tests.Integration
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        #endregion
+
+        #region ForgotPassword Tests
+        [Fact]
+        public async Task ForgotPassword_Returns200_WhenEmailExists()
+        {
+            // Arrange
+            var (_, _, email) = await RegisterUserAsync();
+
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = email
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task ForgotPassword_Returns200_WhenEmailDoesNotExist()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = "nonexistent_" + Guid.NewGuid().ToString("N")[..8] + "@test.com"
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task ForgotPassword_Returns400_WhenEmailIsEmpty()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = ""
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task ForgotPassword_ReturnsNullToken_WhenEmailDoesNotExist()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = "nonexistent_" + Guid.NewGuid().ToString("N")[..8] + "@test.com"
+            }));
+
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            json.GetProperty("resetToken").GetString().Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ForgotPassword_ReturnsToken_WhenEmailExists()
+        {
+            // Arrange
+            var (_, _, email) = await RegisterUserAsync();
+
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = email
+            }));
+
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            json.GetProperty("resetToken").GetString().Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task ForgotPassword_SetsTokenInDatabase_WhenEmailExists()
+        {
+            // Arrange
+            var (username, _, email) = await RegisterUserAsync();
+
+            // Act
+            await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = email
+            }));
+
+            // Assert
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.FirstOrDefault(u => u.Username == username);
+
+            user.Should().NotBeNull();
+            user!.PasswordResetToken.Should().NotBeNullOrEmpty();
+            user.PasswordResetTokenExpiry.Should().NotBeNull();
+            user.PasswordResetTokenExpiry.Should().BeAfter(DateTime.UtcNow);
+        }
+        #endregion
+
+        #region ResetPassword Tests
+        [Fact]
+        public async Task ResetPassword_Returns200_WhenTokenAndPasswordAreValid()
+        {
+            // Arrange
+            var (_, _, email) = await RegisterUserAsync();
+            var token = await GetResetTokenAsync(email);
+
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task ResetPassword_Returns400_WhenTokenIsInvalid()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = "completely-invalid-token-that-does-not-exist",
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task ResetPassword_Returns400_WhenTokenIsEmpty()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = "",
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task ResetPassword_Returns400_WhenPasswordIsEmpty()
+        {
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = "some-token",
+                NewPassword = ""
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task ResetPassword_UpdatesPasswordHash_InDatabase()
+        {
+            // Arrange
+            var (username, _, email) = await RegisterUserAsync();
+            var token = await GetResetTokenAsync(email);
+
+            using var scopeBefore = _factory.Services.CreateScope();
+            var dbBefore = scopeBefore.ServiceProvider.GetRequiredService<AppDbContext>();
+            var oldHash = dbBefore.Users.First(u => u.Username == username).PasswordHash;
+
+            // Act
+            await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Assert
+            using var scopeAfter = _factory.Services.CreateScope();
+            var dbAfter = scopeAfter.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = dbAfter.Users.First(u => u.Username == username);
+
+            user.PasswordHash.Should().NotBe(oldHash);
+            user.PasswordHash.Should().StartWith("$2");
+        }
+
+        [Fact]
+        public async Task ResetPassword_ClearsTokenFromDatabase_AfterSuccessfulReset()
+        {
+            // Arrange
+            var (username, _, email) = await RegisterUserAsync();
+            var token = await GetResetTokenAsync(email);
+
+            // Act
+            await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Assert
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = db.Users.First(u => u.Username == username);
+
+            user.PasswordResetToken.Should().BeNull();
+            user.PasswordResetTokenExpiry.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ResetPassword_TokenCannotBeReusedAfterSuccessfulReset()
+        {
+            // Arrange
+            var (_, _, email) = await RegisterUserAsync();
+            var token = await GetResetTokenAsync(email);
+
+            await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "NewPassword456!"
+            }));
+
+            // Act
+            var response = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "AnotherPassword789!"
+            }));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+        #endregion
+
+        #region Full Reset Flow Tests
+        [Fact]
+        public async Task ForgotPasswordThenResetThenLogin_FullFlow_Succeeds()
+        {
+            // Arrange
+            var (username, _, email) = await RegisterUserAsync();
+            var newPassword = "BrandNewPassword123!";
+
+            // Act
+            var forgotResponse = await _client.PostAsync("/api/v1/auth/forgot-password", JsonContent(new
+            {
+                Email = email
+            }));
+            var forgotBody = await forgotResponse.Content.ReadAsStringAsync();
+            var forgotJson = JsonSerializer.Deserialize<JsonElement>(forgotBody);
+            var token = forgotJson.GetProperty("resetToken").GetString()!;
+
+            var resetResponse = await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = newPassword
+            }));
+
+            var loginResponse = await _client.PostAsync("/api/v1/auth/login", JsonContent(new
+            {
+                Username = username,
+                Password = newPassword,
+                Email = email
+            }));
+
+            var loginBody = await loginResponse.Content.ReadAsStringAsync();
+            var loginJson = JsonSerializer.Deserialize<JsonElement>(loginBody);
+
+            // Assert
+            forgotResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            resetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            loginJson.GetProperty("token").GetString().Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task OldPasswordNoLongerWorksAfterReset()
+        {
+            // Arrange
+            var (username, oldPassword, email) = await RegisterUserAsync();
+            var token = await GetResetTokenAsync(email);
+
+            await _client.PostAsync("/api/v1/auth/reset-password", JsonContent(new
+            {
+                Token = token,
+                NewPassword = "BrandNewPassword123!"
+            }));
+
+            // Act
+            var loginResponse = await _client.PostAsync("/api/v1/auth/login", JsonContent(new
+            {
+                Username = username,
+                Password = oldPassword,
+                Email = email
+            }));
+
+            // Assert
+            loginResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         }
         #endregion
     }
