@@ -24,6 +24,10 @@ namespace AnomalyDetection.Api.Repositories
         {
             return _db.Users.FirstOrDefault(u => u.Username == username);
         }
+        public User? GetUserByEmail(string email)
+        {
+            return _db.Users.FirstOrDefault(u => u.Email == email);
+        }
 
         public User? GetUserById(int userId)
         {

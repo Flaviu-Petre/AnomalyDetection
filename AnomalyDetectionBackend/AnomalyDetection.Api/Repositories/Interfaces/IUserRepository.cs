@@ -5,6 +5,7 @@ namespace AnomalyDetection.Api.Repositories.Interfaces
     public interface IUserRepository
     {
         User? GetUserByUsername(string username);
+        User? GetUserByEmail(string email);
         User? GetUserById(int userId);
         List<User> GetAllUsers();
         void AddUser(User user);
