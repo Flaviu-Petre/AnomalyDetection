@@ -4,9 +4,6 @@ export default function Home() {
       <h1 className="text-4xl font-bold text-blue-900">
         Industrial Anomaly Detection
       </h1>
-      <p className="mt-4 text-gray-600">
-        Frontend connected successfully!
-      </p>
     </main>
   );
 }
