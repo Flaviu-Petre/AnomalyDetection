@@ -51,16 +51,25 @@ namespace AnomalyDetection.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string sortBy = "timestamp",
-            [FromQuery] bool sortDesc = true)
+            [FromQuery] bool sortDesc = true,
+            [FromQuery] bool? isAnomaly = null,
+            [FromQuery] string? category = null,
+            [FromQuery] string? filterUsername = null,
+            [FromQuery] DateTime? dateFrom = null,
+            [FromQuery] DateTime? dateTo = null)
         {
             try
             {
                 string role = User.GetRole();
                 int userId = User.GetUserId();
 
-                var pagedHistory = _statisticsService.GetInferenceHistory(userId, role, page, pageSize, sortBy, sortDesc);
+                var pagedHistory = _statisticsService.GetInferenceHistory(
+                    userId, role, page, pageSize, sortBy, sortDesc,
+                    isAnomaly, category, filterUsername, dateFrom, dateTo);
 
-                _logger.LogInformation("[STATISTICS] User '{Username}' (Role: {Role}) successfully fetched inference history page {Page}.", userId, role, page);
+                _logger.LogInformation(
+                    "[STATISTICS] User '{UserId}' (Role: {Role}) fetched history page {Page}.",
+                    userId, role, page);
 
                 return Ok(pagedHistory);
             }

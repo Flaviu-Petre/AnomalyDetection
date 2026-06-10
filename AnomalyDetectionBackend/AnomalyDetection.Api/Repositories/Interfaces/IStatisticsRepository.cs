@@ -13,6 +13,12 @@ namespace AnomalyDetection.Api.Repositories.Interfaces
             int pageNumber,
             int pageSize,
             string sortBy,
-            bool sortDescending);
+            bool sortDescending,
+            bool? isAnomaly = null,
+            string? category = null,
+            string? filterUsername = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo = null
+        );
     }
 }

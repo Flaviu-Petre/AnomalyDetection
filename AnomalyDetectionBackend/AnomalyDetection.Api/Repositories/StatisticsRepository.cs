@@ -32,7 +32,18 @@ namespace AnomalyDetection.Api.Repositories
                       .ToList();
         }
 
-        public PagedResult<InferenceHistoryDto> GetPagedHistory(DateTime startDate, int? userId, int pageNumber, int pageSize, string sortBy, bool sortDescending)
+        public PagedResult<InferenceHistoryDto> GetPagedHistory(
+            DateTime startDate,
+            int? userId,
+            int pageNumber,
+            int pageSize,
+            string sortBy,
+            bool sortDescending,
+            bool? isAnomaly = null,
+            string? category = null,
+            string? filterUsername = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo = null)
         {
             var query = from record in _db.InferenceRecords
                         join user in _db.Users on record.UserId equals user.Id
@@ -51,9 +62,22 @@ namespace AnomalyDetection.Api.Repositories
                         };
 
             if (userId.HasValue)
-            {
                 query = query.Where(r => r.UserId == userId.Value);
-            }
+
+            if (isAnomaly.HasValue)
+                query = query.Where(r => r.IsAnomaly == isAnomaly.Value);
+
+            if (!string.IsNullOrWhiteSpace(category))
+                query = query.Where(r => r.Category == category.ToLower());
+
+            if (!string.IsNullOrWhiteSpace(filterUsername))
+                query = query.Where(r => r.Username.Contains(filterUsername));
+
+            if (dateFrom.HasValue)
+                query = query.Where(r => r.Timestamp >= dateFrom.Value);
+
+            if (dateTo.HasValue)
+                query = query.Where(r => r.Timestamp <= dateTo.Value);
 
             query = sortBy?.ToLower() switch
             {
@@ -66,9 +90,10 @@ namespace AnomalyDetection.Api.Repositories
 
             int totalCount = query.Count();
 
-            var items = query.Skip((pageNumber - 1) * pageSize)
-                             .Take(pageSize)
-                             .ToList();
+            var items = query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
             return new PagedResult<InferenceHistoryDto>
             {
@@ -79,5 +104,5 @@ namespace AnomalyDetection.Api.Repositories
             };
         }
         #endregion
-        }
+    }
 }
