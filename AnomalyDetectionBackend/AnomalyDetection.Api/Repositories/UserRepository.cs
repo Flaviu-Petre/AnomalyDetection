@@ -1,6 +1,7 @@
 ﻿using AnomalyDetection.Api.Data;
 using AnomalyDetection.Api.Models.Entities;
 using AnomalyDetection.Api.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AnomalyDetection.Api.Repositories
 {
@@ -24,10 +25,19 @@ namespace AnomalyDetection.Api.Repositories
         {
             return _db.Users.FirstOrDefault(u => u.Username == username);
         }
+        public User? GetUserByEmail(string email)
+        {
+            return _db.Users.FirstOrDefault(u => u.Email == email);
+        }
 
         public User? GetUserById(int userId)
         {
             return _db.Users.FirstOrDefault(u => u.Id == userId);
+        }
+
+        public User? GetUserByResetToken(string token)
+        {
+            return _db.Users.FirstOrDefault(u => u.PasswordResetToken == token);
         }
 
         public List<User> GetAllUsers()
@@ -57,8 +67,13 @@ namespace AnomalyDetection.Api.Repositories
 
         public void UpdateUser(User user)
         {
-            _db.Users.Update(user);
+            var entry = _db.Entry(user);
+            if (entry.State == EntityState.Detached)
+            {
+                _db.Users.Update(user);
+            }
             _db.SaveChanges();
+
         }
         #endregion
 

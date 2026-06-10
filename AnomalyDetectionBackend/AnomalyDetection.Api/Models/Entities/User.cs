@@ -7,5 +7,7 @@
         public string PasswordHash { get; set; } = string.Empty;
         public string Role { get; set; } = "User";
         public string Email { get; set; } = string.Empty;
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiry { get; set; }
     }
 }

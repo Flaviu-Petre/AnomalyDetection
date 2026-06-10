@@ -7,5 +7,7 @@ namespace AnomalyDetection.Api.Services.Interfaces
         bool IsUsernameTaken(string username);
         void RegisterUser(string username, string rawPassword, string email);
         LoginResponse? Login(string? username, string? email, string rawPassword);
+        ForgotPasswordResponse ForgotPassword(string email);
+        bool ResetPassword(string token, string newPassword);
     }
 }
