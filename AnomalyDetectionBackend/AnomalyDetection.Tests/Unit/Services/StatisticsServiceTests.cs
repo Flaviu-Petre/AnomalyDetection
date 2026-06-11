@@ -203,7 +203,8 @@ namespace AnomalyDetection.Tests.Unit.Services
         {
             // Arrange
             _mockStatsRepo.Setup(r => r.GetPagedHistory(
-                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true))
+                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true,
+                null, null, null, null, null))
                 .Returns(new PagedResult<InferenceHistoryDto>
                 {
                     Items = new List<InferenceHistoryDto>(),
@@ -219,7 +220,8 @@ namespace AnomalyDetection.Tests.Unit.Services
             _mockStatsRepo.Verify(r => r.GetPagedHistory(
                 It.IsAny<DateTime>(),
                 null,
-                1, 10, "timestamp", true
+                1, 10, "timestamp", true,
+                null, null, null, null, null
             ), Times.Once);
         }
 
@@ -228,7 +230,8 @@ namespace AnomalyDetection.Tests.Unit.Services
         {
             // Arrange
             _mockStatsRepo.Setup(r => r.GetPagedHistory(
-                It.IsAny<DateTime>(), 1, 1, 10, "timestamp", true))
+                It.IsAny<DateTime>(), 1, 1, 10, "timestamp", true,
+                null, null, null, null, null))
                 .Returns(new PagedResult<InferenceHistoryDto>
                 {
                     Items = new List<InferenceHistoryDto>(),
@@ -244,7 +247,86 @@ namespace AnomalyDetection.Tests.Unit.Services
             _mockStatsRepo.Verify(r => r.GetPagedHistory(
                 It.IsAny<DateTime>(),
                 1,
-                1, 10, "timestamp", true
+                1, 10, "timestamp", true,
+                null, null, null, null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetInferenceHistory_PassesIsAnomaly_ToRepository()
+        {
+            // Arrange
+            _mockStatsRepo.Setup(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true,
+                true, null, null, null, null))
+                .Returns(new PagedResult<InferenceHistoryDto>
+                {
+                    Items = new List<InferenceHistoryDto>(),
+                    TotalCount = 0,
+                    PageNumber = 1,
+                    PageSize = 10
+                });
+
+            // Act
+            _statisticsService.GetInferenceHistory(1, "Admin", 1, 10, "timestamp", true,
+                isAnomaly: true);
+
+            // Assert
+            _mockStatsRepo.Verify(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true,
+                true, null, null, null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetInferenceHistory_PassesCategory_ToRepository()
+        {
+            // Arrange
+            _mockStatsRepo.Setup(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true,
+                null, "bottle", null, null, null))
+                .Returns(new PagedResult<InferenceHistoryDto>
+                {
+                    Items = new List<InferenceHistoryDto>(),
+                    TotalCount = 0,
+                    PageNumber = 1,
+                    PageSize = 10
+                });
+
+            // Act
+            _statisticsService.GetInferenceHistory(1, "Admin", 1, 10, "timestamp", true,
+                category: "bottle");
+
+            // Assert
+            _mockStatsRepo.Verify(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), null, 1, 10, "timestamp", true,
+                null, "bottle", null, null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetInferenceHistory_IgnoresFilterUsername_ForNonAdmin()
+        {
+            // Arrange
+            _mockStatsRepo.Setup(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), 1, 1, 10, "timestamp", true,
+                null, null, null, null, null))
+                .Returns(new PagedResult<InferenceHistoryDto>
+                {
+                    Items = new List<InferenceHistoryDto>(),
+                    TotalCount = 0,
+                    PageNumber = 1,
+                    PageSize = 10
+                });
+
+            // Act
+            _statisticsService.GetInferenceHistory(1, "User", 1, 10, "timestamp", true,
+                filterUsername: "some.operator");
+
+            // Assert
+            _mockStatsRepo.Verify(r => r.GetPagedHistory(
+                It.IsAny<DateTime>(), 1, 1, 10, "timestamp", true,
+                null, null, null, null, null
             ), Times.Once);
         }
         #endregion

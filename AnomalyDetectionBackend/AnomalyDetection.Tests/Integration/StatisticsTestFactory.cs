@@ -121,6 +121,17 @@ namespace AnomalyDetection.Tests.Integration
             });
             db.SaveChanges();
         }
+
+        private async Task<string> GetUsernameFromToken(string token)
+        {
+            var parts = token.Split('.');
+            var payload = parts[1];
+            var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+            var json = JsonSerializer.Deserialize<JsonElement>(
+                System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded)));
+            return json.GetProperty("sub").GetString()!;
+        }
+
         private static int GetUserIdFromToken(string token)
         {
             var parts = token.Split('.');
@@ -291,7 +302,6 @@ namespace AnomalyDetection.Tests.Integration
         {
             // Arrange
             var token = await GetTokenAsync("User");
-            var userId = GetUserIdFromToken(token);
             var client = CreateAuthenticatedClient(token);
 
             // Act
@@ -365,6 +375,174 @@ namespace AnomalyDetection.Tests.Integration
             // Assert
             json.GetProperty("items").GetArrayLength().Should().BeLessThanOrEqualTo(2);
             json.GetProperty("pageSize").GetInt32().Should().Be(2);
+        }
+        #endregion
+
+        #region History Filter Tests
+        [Fact]
+        public async Task GetHistory_FiltersByIsAnomaly_ReturnsOnlyAnomalies()
+        {
+            // Arrange
+            var token = await GetTokenAsync("Admin");
+            var userId = GetUserIdFromToken(token);
+            var client = CreateAuthenticatedClient(token);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+            SeedInferenceRecord(userId, "capsule", false, 0.2f);
+            SeedInferenceRecord(userId, "cable", true, 0.8f);
+
+            // Act
+            var response = await client.GetAsync("/api/v1/statistics/history?isAnomaly=true");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.Should().NotBeEmpty();
+            items.All(i => i.GetProperty("isAnomaly").GetBoolean()).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistory_FiltersByIsAnomaly_ReturnsOnlyNormal()
+        {
+            // Arrange
+            var token = await GetTokenAsync("Admin");
+            var userId = GetUserIdFromToken(token);
+            var client = CreateAuthenticatedClient(token);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+            SeedInferenceRecord(userId, "capsule", false, 0.2f);
+            SeedInferenceRecord(userId, "cable", false, 0.1f);
+
+            // Act
+            var response = await client.GetAsync("/api/v1/statistics/history?isAnomaly=false");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.Should().NotBeEmpty();
+            items.All(i => !i.GetProperty("isAnomaly").GetBoolean()).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistory_FiltersByCategory_ReturnsOnlyMatchingCategory()
+        {
+            // Arrange
+            var token = await GetTokenAsync("Admin");
+            var userId = GetUserIdFromToken(token);
+            var client = CreateAuthenticatedClient(token);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+            SeedInferenceRecord(userId, "capsule", false, 0.2f);
+            SeedInferenceRecord(userId, "bottle", false, 0.3f);
+
+            // Act
+            var response = await client.GetAsync("/api/v1/statistics/history?category=bottle");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.Should().NotBeEmpty();
+            items.All(i => i.GetProperty("category").GetString() == "bottle").Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistory_FiltersByCategory_ReturnsEmptyResult_WhenNoneMatch()
+        {
+            // Arrange
+            var token = await GetTokenAsync("Admin");
+            var userId = GetUserIdFromToken(token);
+            var client = CreateAuthenticatedClient(token);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+
+            // Act
+            var response = await client.GetAsync("/api/v1/statistics/history?category=zipper");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            json.GetProperty("totalCount").GetInt32().Should().Be(0);
+            json.GetProperty("items").GetArrayLength().Should().Be(0);
+        }
+
+        [Fact]
+        public async Task GetHistory_FiltersByUsername_ReturnsOnlyMatchingUser_ForAdmin()
+        {
+            // Arrange
+            var adminToken = await GetTokenAsync("Admin");
+            var adminUserId = GetUserIdFromToken(adminToken);
+            var adminClient = CreateAuthenticatedClient(adminToken);
+
+            var userToken = await GetTokenAsync("User");
+            var userUserId = GetUserIdFromToken(userToken);
+            var username = await GetUsernameFromToken(userToken);
+
+            SeedInferenceRecord(userUserId, "bottle", true, 0.9f);
+            SeedInferenceRecord(adminUserId, "capsule", false, 0.2f);
+
+            // Act
+            var response = await adminClient.GetAsync($"/api/v1/statistics/history?filterUsername={username}");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.Should().NotBeEmpty();
+            items.All(i => i.GetProperty("username").GetString() == username).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistory_IgnoresUsernameFilter_ForNonAdmin()
+        {
+            // Arrange
+            var userToken = await GetTokenAsync("User");
+            var userId = GetUserIdFromToken(userToken);
+            var userClient = CreateAuthenticatedClient(userToken);
+
+            var otherToken = await GetTokenAsync("User");
+            var otherUserId = GetUserIdFromToken(otherToken);
+            var otherUsername = await GetUsernameFromToken(otherToken);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+            SeedInferenceRecord(otherUserId, "capsule", false, 0.2f);
+
+            // Act
+            var response = await userClient.GetAsync($"/api/v1/statistics/history?filterUsername={otherUsername}");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.All(i => i.GetProperty("username").GetString() != otherUsername).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistory_CombinesFilters_IsAnomalyAndCategory()
+        {
+            // Arrange
+            var token = await GetTokenAsync("Admin");
+            var userId = GetUserIdFromToken(token);
+            var client = CreateAuthenticatedClient(token);
+
+            SeedInferenceRecord(userId, "bottle", true, 0.9f);
+            SeedInferenceRecord(userId, "bottle", false, 0.2f);
+            SeedInferenceRecord(userId, "capsule", true, 0.8f);
+
+            // Act
+            var response = await client.GetAsync("/api/v1/statistics/history?category=bottle&isAnomaly=true");
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+
+            // Assert
+            var items = json.GetProperty("items").EnumerateArray().ToList();
+            items.Should().NotBeEmpty();
+            items.All(i =>
+                i.GetProperty("category").GetString() == "bottle" &&
+                i.GetProperty("isAnomaly").GetBoolean()
+            ).Should().BeTrue();
         }
         #endregion
     }
