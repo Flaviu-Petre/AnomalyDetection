@@ -153,8 +153,10 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             // Arrange
             SetupAuthenticatedUser("1", "User");
             var history = CreateFakePagedHistory();
-            _mockStatisticsService.Setup(s => s.GetInferenceHistory(1, "User", 1, 10, "timestamp", true))
-                                  .Returns(history);
+            _mockStatisticsService.Setup(s => s.GetInferenceHistory(
+                1, "User", 1, 10, "timestamp", true,
+                null, null, null, null, null))
+                .Returns(history);
 
             // Act
             var result = _controller.GetHistory(1, 10, "timestamp", true);
@@ -172,7 +174,8 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             _mockStatisticsService.Setup(s => s.GetInferenceHistory(
                 It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<bool>()))
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, null, null, null))
                 .Returns(CreateFakePagedHistory());
 
             // Act
@@ -180,7 +183,8 @@ namespace AnomalyDetection.Tests.Unit.Controllers
 
             // Assert
             _mockStatisticsService.Verify(s => s.GetInferenceHistory(
-                1, "Admin", 2, 5, "score", false
+                1, "Admin", 2, 5, "score", false,
+                null, null, null, null, null
             ), Times.Once);
         }
 
@@ -192,15 +196,17 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             _mockStatisticsService.Setup(s => s.GetInferenceHistory(
                 It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<bool>()))
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, null, null, null))
                 .Returns(CreateFakePagedHistory());
 
             // Act
-            _controller.GetHistory(); // fara parametri — foloseste defaulturile
+            _controller.GetHistory();
 
             // Assert
             _mockStatisticsService.Verify(s => s.GetInferenceHistory(
-                1, "User", 1, 10, "timestamp", true
+                1, "User", 1, 10, "timestamp", true,
+                null, null, null, null, null
             ), Times.Once);
         }
 
@@ -212,7 +218,8 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             _mockStatisticsService.Setup(s => s.GetInferenceHistory(
                 It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<bool>()))
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, null, null, null))
                 .Throws(new Exception("DB error"));
 
             // Act
@@ -232,7 +239,8 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             _mockStatisticsService.Setup(s => s.GetInferenceHistory(
                 It.IsAny<int>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<string>(), It.IsAny<bool>()))
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, null, null, null))
                 .Returns(history);
 
             // Act
@@ -244,6 +252,94 @@ namespace AnomalyDetection.Tests.Unit.Controllers
             response.PageNumber.Should().Be(1);
             response.PageSize.Should().Be(10);
             response.Items.Should().HaveCount(2);
+        }
+
+        [Fact]
+        public void GetHistory_CallsService_WithIsAnomalyFilter()
+        {
+            // Arrange
+            SetupAuthenticatedUser("1", "User");
+            _mockStatisticsService.Setup(s => s.GetInferenceHistory(
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<bool>(),
+                true, null, null, null, null))
+                .Returns(CreateFakePagedHistory());
+
+            // Act
+            _controller.GetHistory(isAnomaly: true);
+
+            // Assert
+            _mockStatisticsService.Verify(s => s.GetInferenceHistory(
+                1, "User", 1, 10, "timestamp", true,
+                true, null, null, null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetHistory_CallsService_WithCategoryFilter()
+        {
+            // Arrange
+            SetupAuthenticatedUser("1", "User");
+            _mockStatisticsService.Setup(s => s.GetInferenceHistory(
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, "bottle", null, null, null))
+                .Returns(CreateFakePagedHistory());
+
+            // Act
+            _controller.GetHistory(category: "bottle");
+
+            // Assert
+            _mockStatisticsService.Verify(s => s.GetInferenceHistory(
+                1, "User", 1, 10, "timestamp", true,
+                null, "bottle", null, null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetHistory_CallsService_WithUsernameFilter_ForAdmin()
+        {
+            // Arrange
+            SetupAuthenticatedUser("1", "Admin");
+            _mockStatisticsService.Setup(s => s.GetInferenceHistory(
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, "some.operator", null, null))
+                .Returns(CreateFakePagedHistory());
+
+            // Act
+            _controller.GetHistory(filterUsername: "some.operator");
+
+            // Assert
+            _mockStatisticsService.Verify(s => s.GetInferenceHistory(
+                1, "Admin", 1, 10, "timestamp", true,
+                null, null, "some.operator", null, null
+            ), Times.Once);
+        }
+
+        [Fact]
+        public void GetHistory_PassesUsernameFilter_ToService_ForNonAdmin()
+        {
+            // Arrange
+            SetupAuthenticatedUser("1", "User");
+            _mockStatisticsService.Setup(s => s.GetInferenceHistory(
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<bool>(),
+                null, null, "some.operator", null, null))
+                .Returns(CreateFakePagedHistory());
+
+            // Act
+            _controller.GetHistory(filterUsername: "some.operator");
+
+            // Assert
+            _mockStatisticsService.Verify(s => s.GetInferenceHistory(
+                1, "User", 1, 10, "timestamp", true,
+                null, null, "some.operator", null, null
+            ), Times.Once);
         }
         #endregion
     }
