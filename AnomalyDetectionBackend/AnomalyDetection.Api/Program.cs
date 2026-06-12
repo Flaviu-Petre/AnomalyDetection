@@ -106,14 +106,11 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    app.MapOpenApi();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
+app.MapOpenApi();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseCors("AllowNextJsFrontend");
 
@@ -122,6 +119,33 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    var retries = 10;
+    while (retries > 0)
+    {
+        try
+        {
+            db.Database.Migrate();
+            break;
+        }
+        catch (Exception ex) when (ex.Message.Contains("already exists"))
+        {
+            break;
+        }
+        catch (Exception ex)
+        {
+            retries--;
+            if (retries == 0) throw;
+            Console.WriteLine($"DB not ready, retrying... ({retries} attempts left).");
+            Thread.Sleep(3000);
+        }
+    }
+}
 
 app.Run();
 public partial class Program { }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/api";
 
 interface CategorySummary {
   category: string;
@@ -35,7 +36,7 @@ export default function FeedbackPage() {
   const fetchSummary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("https://localhost:7136/api/v1/Feedback/summary", {
+      const response = await fetch(`${API_URL}/api/v1/Feedback/summary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -57,7 +58,7 @@ export default function FeedbackPage() {
 
     try {
       const response = await fetch(
-        `https://localhost:7136/api/v1/Feedback/images/${category}/${label}/${filename}`,
+        `${API_URL}/api/v1/Feedback/images/${category}/${label}/${filename}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.ok) {
@@ -79,7 +80,7 @@ export default function FeedbackPage() {
 
     try {
       const response = await fetch(
-        `https://localhost:7136/api/v1/Feedback/images/${category}/${label}`,
+        `${API_URL}/api/v1/Feedback/images/${category}/${label}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.ok) {

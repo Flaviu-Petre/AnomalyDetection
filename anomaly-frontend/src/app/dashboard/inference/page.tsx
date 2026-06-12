@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { API_URL } from "@/lib/api";
 
 export default function InferencePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -46,7 +47,7 @@ export default function InferencePage() {
       formData.append("image", selectedFile);
       formData.append("returnHeatmap", requestHeatmap.toString());
 
-      const response = await fetch("https://localhost:7136/api/v1/Inference/detect_anomaly", {
+      const response = await fetch(`${API_URL}/api/v1/Inference/detect_anomaly`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -86,7 +87,7 @@ export default function InferencePage() {
       formData.append("image", selectedFile);
       formData.append("isActuallyAnomaly", actualAnomalyState.toString());
 
-      const response = await fetch("https://localhost:7136/api/v1/Feedback", {
+      const response = await fetch(`${API_URL}/api/v1/Feedback`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`

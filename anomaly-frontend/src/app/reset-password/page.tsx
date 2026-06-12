@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_URL } from "@/lib/api";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("https://localhost:7136/api/v1/Auth/reset-password", {
+      const response = await fetch(`${API_URL}/api/v1/Auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword }),

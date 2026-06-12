@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "@/lib/api";
 
 interface InferenceRecord {
   id: number;
@@ -64,7 +65,7 @@ export default function HistoryPage() {
         if (filterUsername.trim() !== "" && userRole === "Admin")
           params.append("filterUsername", filterUsername.trim());
 
-        const url = `https://localhost:7136/api/v1/Statistics/history?${params.toString()}`;
+        const url = `${API_URL}/api/v1/Statistics/history?${params.toString()}`;
 
         const response = await fetch(url, {
           headers: { "Authorization": `Bearer ${token}` }

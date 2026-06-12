@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
+import { API_URL } from "@/lib/api";
 
 interface User {
   id: number;
@@ -26,7 +27,7 @@ export default function UsersManagementPage() {
     setErrorMessage("");
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://localhost:7136/api/v1/Users", {
+      const response = await fetch(`${API_URL}/api/v1/Users`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -69,7 +70,7 @@ export default function UsersManagementPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://localhost:7136/api/v1/Users/${userId}/role`, {
+      const response = await fetch(`${API_URL}/api/v1/Users/${userId}/role`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +107,7 @@ export default function UsersManagementPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://localhost:7136/api/v1/Users/${id}`, {
+      const response = await fetch(`${API_URL}/api/v1/Users/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,

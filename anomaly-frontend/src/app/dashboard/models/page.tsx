@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "@/lib/api";
 
 interface ModelInfo {
   category: string;
@@ -25,7 +26,7 @@ export default function ModelsManagerPage() {
     setFetchError("");
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("https://localhost:7136/api/v1/Models/get_all_models", {
+      const response = await fetch(`${API_URL}/api/v1/Models/get_all_models`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
@@ -66,7 +67,7 @@ export default function ModelsManagerPage() {
       formData.append("BankFile", bankFile);
       formData.append("JsonMetadata", jsonFile);
 
-      const response = await fetch("https://localhost:7136/api/v1/Models/upload_model", {
+      const response = await fetch(`${API_URL}/api/v1/Models/upload_model`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
@@ -96,7 +97,7 @@ export default function ModelsManagerPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`https://localhost:7136/api/v1/Models/delete_category?category=${categoryToDelete}`, {
+      const response = await fetch(`${API_URL}/api/v1/Models/delete_category?category=${categoryToDelete}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });

@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Dockerfile" />
+  </Folder>
   <Project Path="AnomalyDetection.Api/AnomalyDetection.Api.csproj" />
   <Project Path="AnomalyDetection.Tests/AnomalyDetection.Tests.csproj" Id="45a2209f-0b0a-4659-9d5f-722790b8f643" />
 </Solution>

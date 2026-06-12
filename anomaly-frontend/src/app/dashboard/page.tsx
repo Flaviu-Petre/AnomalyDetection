@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "@/lib/api";
 
 interface DashboardStats {
   totalInferencesThisWeek: number;
@@ -34,7 +35,7 @@ export default function DashboardPage() {
     const fetchStatistics = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch("https://localhost:7136/api/v1/Statistics", {
+        const response = await fetch(`${API_URL}/api/v1/Statistics`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
