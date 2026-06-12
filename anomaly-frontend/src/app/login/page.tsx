@@ -42,7 +42,7 @@ export default function LoginPage() {
 
         router.push("/dashboard");
       } else {
-        setErrorMessage("Invalid username or password.");
+        setErrorMessage("Invalid username, email, or password.");
       }
     } catch (error) {
       setErrorMessage("Could not connect to the server. Is the API running?");
