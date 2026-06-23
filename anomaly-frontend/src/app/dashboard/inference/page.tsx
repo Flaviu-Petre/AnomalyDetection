@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { API_URL } from "@/lib/api";
 
 export default function InferencePage() {
@@ -17,7 +17,28 @@ export default function InferencePage() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
+  const [supportedCategories, setSupportedCategories] = useState<string[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- LOAD SUPPORTED CATEGORIES ---
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${API_URL}/api/v1/Models/get_all_models`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSupportedCategories(data.map((m: { category: string }) => m.category));
+        }
+      } catch {
+        // silent: section just won't render if categories can't be loaded
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // --- EVENT HANDLERS ---
   const runInference = async (file: File, heatmap: boolean) => {
@@ -195,6 +216,25 @@ export default function InferencePage() {
             )}
           </button>
         </div>
+
+        {/* Supported categories */}
+        {supportedCategories.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs text-gray-500 mb-2">
+              Inspectable categories, images outside these types are rejected automatically:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {supportedCategories.map((cat) => (
+                <span
+                  key={cat}
+                  className="px-2.5 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-full border border-gray-200"
+                >
+                  {formatCategoryName(cat)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200 text-sm font-medium">
