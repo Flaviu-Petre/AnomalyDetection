@@ -21,6 +21,10 @@ export default function ModelsManagerPage() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [uploadError, setUploadError] = useState("");
 
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const fetchModels = async () => {
     setIsLoading(true);
     setFetchError("");
@@ -90,10 +94,22 @@ export default function ModelsManagerPage() {
     }
   };
 
-  const handleDelete = async (categoryToDelete: string) => {
-    if (!window.confirm(`Are you absolutely sure you want to delete the model for '${categoryToDelete}'? This cannot be undone.`)) {
-      return;
-    }
+  const requestDelete = (category: string) => {
+    setDeleteError("");
+    setCategoryToDelete(category);
+  };
+
+  const cancelDelete = () => {
+    if (isDeleting) return;
+    setCategoryToDelete(null);
+    setDeleteError("");
+  };
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
 
     try {
       const token = localStorage.getItem("token");
@@ -103,12 +119,15 @@ export default function ModelsManagerPage() {
       });
 
       if (response.ok) {
+        setCategoryToDelete(null);
         fetchModels();
       } else {
-        alert("Failed to delete model. Check server logs.");
+        setDeleteError("Failed to delete model. Check server logs.");
       }
     } catch (error) {
-      alert("Network error while trying to delete.");
+      setDeleteError("Network error while trying to delete.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -263,7 +282,7 @@ export default function ModelsManagerPage() {
                       </td>
                       <td className="p-4 text-right">
                         <button
-                          onClick={() => handleDelete(m.category)}
+                          onClick={() => requestDelete(m.category)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors inline-flex items-center gap-1 text-sm font-medium"
                           title="Delete category"
                         >
@@ -281,6 +300,63 @@ export default function ModelsManagerPage() {
           </div>
         </div>
       </div>
+
+      {categoryToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={cancelDelete}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 flex items-center justify-center w-11 h-11 rounded-full bg-red-100">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-800">Delete memory bank</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Are you sure you want to delete the model for{" "}
+                  <span className="font-semibold text-gray-800">{formatCategoryName(categoryToDelete)}</span>?
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm border border-red-200">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={cancelDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isDeleting && (
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
